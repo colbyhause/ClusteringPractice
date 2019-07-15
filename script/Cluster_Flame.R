@@ -135,6 +135,88 @@ ggplot(data = center_df, aes(x = features, y = cluster, fill = values)) +
   scale_fill_gradientn(colours = hm.palette(90)) +
   theme_classic()
 
+####### Trying again using methods from 3rd tutorial from ClusterExamples script page: ----
 
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+#install.packages("factoextra")
+library(factoextra) # clustering algorithms & visualization
+
+# dataframe:
+dat <- readRDS("data/flame3.supercleaned.rds")
+
+# remove missing values:
+which(is.na(dat))
+dat_noNAs <- na.omit(dat) # so having to use a dataset that is roughly half the size bc of all the rows I have to omit bc of NAs
+which(is.na(dat_noNAs))
+# keep only columns that you need:
+dat_cols <- dat_noNAs[ , c(6:8, 10:15)]
+
+# log transform:
+dat_transformed <- apply(dat_cols, 2, log) 
+# now rescale data:
+dat_rescaled <- apply(dat_transformed, 2, scale)
+
+distance <- get_dist(dat_rescaled) # calculate distances
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # visualize by creating a dustance matrix- This takes a long time to run bc of the large dataset!
+
+# Determine Clust groups:
+
+#Elbow Method:
+wss <- function(k) {
+  kmeans(df, k, nstart = 10 )$tot.withinss
+}
+
+k.values <- 1:15
+
+# extract wss for 2-15 clusters
+wss_values <- map_dbl(k.values, wss)
+
+plot(k.values, wss_values,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+#OR better yet use this single function for elbow method:
+set.seed(123)
+fviz_nbclust(dat_rescaled, kmeans, method = "wss") # looks like 2 clusters are optimal 
+
+#Silhousette method:
+fviz_nbclust(dat_rescaled, kmeans, method = "silhouette") # says 2 clusters are optimal
+
+# Gap statistic method:
+set.seed(123)
+gap_stat <- clusGap(dat_rescaled, FUN = kmeans, nstart = 25,
+                    K.max = 50, B = 50)
+print(gap_stat, method = "firstmax")
+#We can visualize the results with fviz_gap_stat which suggests four clusters as the optimal number of clusters.
+fviz_gap_stat(gap_stat) # shows that 10 iterations were not suffient (did not converge), so trying 50...shows that optimal is 12...WARNING: 50 iterations take a long time to run
+
+
+# since 2 methods gave 2 optiminal groups and the other gave 12 optimal groups, try running k means with both:
+
+set.seed(123)
+final_2 <- kmeans(dat_rescaled, 2, nstart = 25)
+print(final_2)
+
+final_12 <- kmeans(dat_rescaled, 12, nstart = 25)
+print(final_12)
+
+final_4 <- kmeans(dat_rescaled, 4, nstart = 25)
+print(final_12)
+#visualize:
+fviz_cluster(final_2, data = dat_rescaled, labelsize = NA)
+fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
+
+
+# trying to determine number of clusters with NbClust package: this package provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+#install.packages("NbClust")
+library(NbClust)
+es.nbclust <- NbClust(dat_rescaled, distance = "euclidean",
+                      min.nc = 2, max.nc = 15, 
+                      method = "complete", index ="all")
+factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's optimal number of clusters")
+
+# comes out to optimal number of clusters is 2
 
 
