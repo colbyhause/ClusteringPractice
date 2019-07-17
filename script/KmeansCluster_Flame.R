@@ -207,7 +207,10 @@ print(final_12)
 final_4 <- kmeans(dat_rescaled, 4, nstart = 25)
 print(final_12)
 #visualize:
+
+pdf("figure_output/f3.ClusterAnalysis.pdf")
 fviz_cluster(final_2, data = dat_rescaled, labelsize = NA)
+dev.off()
 fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
 
 
@@ -222,14 +225,15 @@ factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's opti
 # comes out to optimal number of clusters is 2
 
 
-# Cluster Analysis on the 2 Clusters:
+# Sub Cluster Analysis:----
 
+#Add cluster to data----
 #1. add the cluster group assignments to the dataset:
 
 dat_clustgrp<- dat_noNAs %>%
   mutate(cluster = final_2$cluster) 
 
-#2. make 2 dataframe from those clusters:
+#2. make 2 dataframe from those clusters:----
 dat_clust1 <- dat_clustgrp %>% 
   filter(cluster == 1)
 dat_clust1_params<- dat_clust1[ , c(6:8, 11:15)]
@@ -239,7 +243,7 @@ dat_clust2 <- dat_clustgrp %>%
   filter(cluster == 2)
 dat_clust2_params<- dat_clust2[ , c(6:8, 11:15)]
 
-#3. normalize and scale data:
+#3. normalize and scale data: ----
 #cluster1 df:
 dat_clust1.log <- apply(dat_clust1_params, 2, log) # log transform
 dat_clust1.log.scale <- apply(dat_clust1.log, 2, scale) # scale data
@@ -247,7 +251,7 @@ dat_clust1.log.scale <- apply(dat_clust1.log, 2, scale) # scale data
 dat_clust2.log <- apply(dat_clust2_params, 2, log) # log transform
 dat_clust2.log.scale <- apply(dat_clust2.log, 2, scale)   # scale data
 
-#4. Get distances to look at distance matrix:
+#4. Get distances to look at distance matrix:----
 #cluster group1:
 dist.clust1 <- get_dist(dat_clust1.log.scale) # calculate distances
 fviz_dist(dist.clust1, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # this takes a long time to run!
@@ -256,7 +260,7 @@ dist.clust2 <- get_dist(dat_clust2.log.scale) # calculate distances
 fviz_dist(dist.clust2, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # this takes a long time to run!
 
 
-#5. Determine number of clusters
+#5. Get Optimal clusters----
 #Elbow Method:
 #cluster group1:
 wss1 <- function(k) {
@@ -294,7 +298,7 @@ fviz_nbclust(dat_clust2.log.scale, kmeans, method = "wss") # maybe 4 clusters?
 fviz_nbclust(dat_clust1.log.scale, kmeans, method = "silhouette") # says 2 clusters are optimal
 fviz_nbclust(dat_clust2.log.scale, kmeans, method = "silhouette") # says 3 clusters are optimal
 
-# Gap statistic method:
+# Gap statistic method: not using this method to determine clusters
 set.seed(123)
 gap_stat1 <- clusGap(dat_clust1.log.scale, FUN = kmeans, nstart = 25,
                     K.max = 17, B = 50)
@@ -323,26 +327,34 @@ factoextra::fviz_nbclust(res.nbclust2) + theme_minimal() + ggtitle("NbClust's op
 fviz_gap_stat(gap_stat1)  # said didnt converge in 10 iterations...
 fviz_gap_stat(gap_stat2) # said didnt converge in 10 iterations...
 
-# Making cluster plots
+# Cluster plots----
 # Cluster group 1: trying a couple different cluster groups
 set.seed(123)
 cluster1_final2 <- kmeans(dat_clust1.log.scale, 2, nstart = 25)
-cluster1_final3 <- kmeans(dat_clust1.log.scale, 3, nstart = 25)
+#cluster1_final3 <- kmeans(dat_clust1.log.scale, 3, nstart = 25)
 
 # Cluster group 2: trying a couple different cluster groups
-cluster2_final2 <- kmeans(dat_clust2.log.scale, 2, nstart = 25)
-cluster2_final3 <- kmeans(dat_clust2.log.scale, 3, nstart = 25)
+#cluster2_final2 <- kmeans(dat_clust2.log.scale, 2, nstart = 25)
+#cluster2_final3 <- kmeans(dat_clust2.log.scale, 3, nstart = 25)
 cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
 
-#visualize:
+#visualize Plots:----
+#Cluster group 1:
+pdf(file = "figure_output/f3.grp1.subclusts.clusterPlot.pdf")
 fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
-#fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
+dev.off()
+fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
 
+#Cluster group 2:
 #fviz_cluster(cluster2_final2, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 #fviz_cluster(cluster2_final3, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+pdf(file = "figure_output/f3.grp2.subclusts.clusterPlot.pdf")
 fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+dev.off()
 
-# Add cluster groups to dataframes, write to csv:
+#Spatialize Sub clusters: ----
+
+# Add subcluster groups to dataframes, write to csv:----
 # cluster group 1:
 dat_subClusts1 <- dat_clust1 %>% 
   mutate(cluster = cluster1_final2$cluster)
@@ -353,11 +365,11 @@ dat_subClusts2 <- dat_clust2 %>%
   mutate(cluster = cluster2_final4$cluster) 
 write_csv(x = dat_subClusts2, path = "data_output/flame3_clust2_subclusts.csv")
 
-# Look at the cluster groups Spatially:
+# read in dataframe csvs:----
 f3.dat_subClusts1 <- read_csv(file = "data_output/flame3_clust1_subclusts.csv")
 f3.dat_subClusts2 <- read_csv(file = "data_output/flame3_clust2_subclusts.csv")
 
-# Make data Spatial
+# Make data Spatial----
 #install.packages("naniar")
 library(naniar)
 library(tidyverse)
@@ -381,16 +393,41 @@ f3_clust2.geodata.sf<- st_as_sf(f3.dat_subClusts2,
                                 remove = F, # don't remove these lat/lon cols from df
                                 crs = 4326) # add projection
 
-# write spatial data to creat shp file
+# write spatial data to creat shp file----
 st_write(f3_clust1.geodata.sf, "data_output/f3_clust1_subclusts.shp", delete_dsn = T)
 st_write(f3_clust2.geodata.sf, "data_output/f3_clust2_subclusts.shp", delete_dsn = T)
 
-# Look at plots with the clusters as the variable:
-# plot spatial data
+# Look at plots with the clusters as the variable:----
+# plot spatial data: using base R
 
-f3.clust1.subclustsPlot<- plot(f3_clust1.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 1 sub clusters")
+pdf("figure_output/f3.spatial.clust1.subclusts.pdf")
+f3.clust1.subclustsPlot<- plot(f3_clust1.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 1 sub clusters")#, cex.lab=.6)
+dev.off()
 f3.clust1.subclustsPlot
 
-
-f3.clust2.subclustsPlot<- plot(f3_clust2.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 2 sub clusters")
+pdf("figure_output/f3.spatial.clust2.subclusts.pdf")
+f3.clust2.subclustsPlot<- plot(f3_clust2.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 2 sub clusters")#, cex.lab=4)
+dev.off()
 f3.clust2.subclustsPlot
+
+# plot spatial data: using tmap----
+# cluster group1:
+f3.clust1.subclusts.tmap <- tm_shape(f3_clust1.geodata.sf["cluster"]) + 
+  tm_layout(title = "Cluster Group 1 sub-clusters", frame=F, inner.margin=0.1, title.size = 1.2, title.position = c("center", "top"), legend.position = c("left", "bottom"), legend.text.size = 1.2, legend.title.size = 1) +
+  tm_compass(type = "8star", size = 2, position = c(0.8, 0.8)) +
+  tm_scale_bar(breaks = c(0, 10, 20), position = c("left", "bottom"),
+               size = 0.7) +
+  tm_symbols(col="cluster",n = 2, title.col = "clusters", palette =  viridis(n=2, direction = -1), size = .1, border.lwd   = NA) 
+f3.clust1.subclusts.tmap
+tmap_save(f3.clust1.subclusts.tmap, "figure_output/f3.ClusterGrp1_subclusters.tmap.png")
+
+# cluster group2:
+f3.clust2.subclusts.tmap <- tm_shape(f3_clust2.geodata.sf["cluster"]) + 
+  tm_layout(title = "Cluster Group 1 sub-clusters", frame=F, inner.margin=0.1, title.size = 1.2, title.position = c("center", "top"), legend.position = c("left", "bottom"), legend.text.size = 1.2, legend.title.size = 1) +
+  tm_compass(type = "8star", size = 2, position = c(0.8, 0.8)) +
+  tm_scale_bar(breaks = c(0, 10, 20), position = c("left", "bottom"),
+               size = 0.7) +
+  tm_symbols(col="cluster",n = 5, title.col = "clusters", palette =  viridis(n=4, direction = -1), size = .1, border.lwd   = NA) 
+f3.clust2.subclusts.tmap
+tmap_save(f3.clust1.subclusts.tmap, "figure_output/f3.ClusterGrp1_subclusters.tmap.png")
+
