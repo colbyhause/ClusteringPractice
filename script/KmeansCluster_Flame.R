@@ -351,13 +351,46 @@ write_csv(x = dat_subClusts1, path = "data_output/flame3_clust1_subclusts.csv")
 # cluster group 2:
 dat_subClusts2 <- dat_clust2 %>% 
   mutate(cluster = cluster2_final4$cluster) 
-write_csv(x = dat_subClusts1, path = "data_output/flame3_clust1_subclusts.csv")
+write_csv(x = dat_subClusts2, path = "data_output/flame3_clust2_subclusts.csv")
 
 # Look at the cluster groups Spatially:
-write_csv(x = dat_clust1, path = "data_output/flame3_clust1.csv")
-f3_clust1.geodata.sf<- st_as_sf(flame2.geodatacsv, 
+f3.dat_subClusts1 <- read_csv(file = "data_output/flame3_clust1_subclusts.csv")
+f3.dat_subClusts2 <- read_csv(file = "data_output/flame3_clust2_subclusts.csv")
+
+# Make data Spatial
+#install.packages("naniar")
+library(naniar)
+library(tidyverse)
+library(udunits2)
+#install.packages("tmap")
+library(tmap)
+#install.packages("viridis")
+library(viridis)
+gg_miss_var(as.data.frame(flame2.edited), show_pct= T)
+#install.packages("sf",dependencies = T) 
+library(sf)
+
+
+f3_clust1.geodata.sf<- st_as_sf(f3.dat_subClusts1, 
                              coords = c("lon", "lat"), #specify lat lon cols
                              remove = F, # don't remove these lat/lon cols from df
                              crs = 4326) # add projection
 
+f3_clust2.geodata.sf<- st_as_sf(f3.dat_subClusts2, 
+                                coords = c("lon", "lat"), #specify lat lon cols
+                                remove = F, # don't remove these lat/lon cols from df
+                                crs = 4326) # add projection
 
+# write spatial data to creat shp file
+st_write(f3_clust1.geodata.sf, "data_output/f3_clust1_subclusts.shp", delete_dsn = T)
+st_write(f3_clust2.geodata.sf, "data_output/f3_clust2_subclusts.shp", delete_dsn = T)
+
+# Look at plots with the clusters as the variable:
+# plot spatial data
+
+f3.clust1.subclustsPlot<- plot(f3_clust1.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 1 sub clusters")
+f3.clust1.subclustsPlot
+
+
+f3.clust2.subclustsPlot<- plot(f3_clust2.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 2 sub clusters")
+f3.clust2.subclustsPlot
