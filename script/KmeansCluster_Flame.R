@@ -222,3 +222,142 @@ factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's opti
 # comes out to optimal number of clusters is 2
 
 
+# Cluster Analysis on the 2 Clusters:
+
+#1. add the cluster group assignments to the dataset:
+
+dat_clustgrp<- dat_noNAs %>%
+  mutate(cluster = final_2$cluster) 
+
+#2. make 2 dataframe from those clusters:
+dat_clust1 <- dat_clustgrp %>% 
+  filter(cluster == 1)
+dat_clust1_params<- dat_clust1[ , c(6:8, 11:15)]
+  
+
+dat_clust2 <- dat_clustgrp %>% 
+  filter(cluster == 2)
+dat_clust2_params<- dat_clust2[ , c(6:8, 11:15)]
+
+#3. normalize and scale data:
+#cluster1 df:
+dat_clust1.log <- apply(dat_clust1_params, 2, log) # log transform
+dat_clust1.log.scale <- apply(dat_clust1.log, 2, scale) # scale data
+#cluster2 df:
+dat_clust2.log <- apply(dat_clust2_params, 2, log) # log transform
+dat_clust2.log.scale <- apply(dat_clust2.log, 2, scale)   # scale data
+
+#4. Get distances to look at distance matrix:
+#cluster group1:
+dist.clust1 <- get_dist(dat_clust1.log.scale) # calculate distances
+fviz_dist(dist.clust1, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # this takes a long time to run!
+# cluster group2:
+dist.clust2 <- get_dist(dat_clust2.log.scale) # calculate distances
+fviz_dist(dist.clust2, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # this takes a long time to run!
+
+
+#5. Determine number of clusters
+#Elbow Method:
+#cluster group1:
+wss1 <- function(k) {
+  kmeans(dat_clust1.log.scale, k, nstart = 10 )$tot.withinss
+}
+k.values <- 1:15
+
+# cluster group2:
+wss2 <- function(k) {
+  kmeans(dat_clust2.log.scale, k, nstart = 10 )$tot.withinss
+}
+k.values <- 1:15
+# extract wss for 2-15 clusters
+wss_clust1 <- map_dbl(k.values, wss1)
+wss_clust2 <- map_dbl(k.values, wss2)
+
+plot(k.values, wss_clust1,
+     type="b", pch = 19, frame = FALSE,
+     main = "cluster group1",
+     xlab="Number of clusters K ",
+     ylab="Total within-clusters sum of squares")
+
+plot(k.values, wss_clust2,
+     type="b", pch = 19, frame = FALSE,
+     main = "cluster group2",
+     xlab="Number of clusters K ",
+     ylab="Total within-clusters sum of squares")
+
+#OR better yet use this single function for elbow method: 
+set.seed(123)
+fviz_nbclust(dat_clust1.log.scale, kmeans, method = "wss") #maybe 3 clusters optimal?
+fviz_nbclust(dat_clust2.log.scale, kmeans, method = "wss") # maybe 4 clusters?
+
+#Silhousette method: shows the same plot for both, dont use this method
+fviz_nbclust(dat_clust1.log.scale, kmeans, method = "silhouette") # says 2 clusters are optimal
+fviz_nbclust(dat_clust2.log.scale, kmeans, method = "silhouette") # says 3 clusters are optimal
+
+# Gap statistic method:
+set.seed(123)
+gap_stat1 <- clusGap(dat_clust1.log.scale, FUN = kmeans, nstart = 25,
+                    K.max = 17, B = 50)
+print(gap_stat1, method = "firstmax")
+
+set.seed(123)
+gap_stat2 <- clusGap(dat_clust2.log.scale, FUN = kmeans, nstart = 25,
+                     K.max = 25, B = 50)
+print(gap_stat2, method = "firstmax")
+
+# Nb cluster method: provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+
+library(NbClust)
+res.nbclust1 <- NbClust(dat_clust1.log.scale, distance = "euclidean",
+                      min.nc = 2, max.nc = 15, 
+                      method = "complete", index ="all")
+factoextra::fviz_nbclust(res.nbclust1) + theme_minimal() + ggtitle("NbClust's optimal # of clusters Group1") # Says optimal cluster number  = 2 
+
+res.nbclust2 <- NbClust(dat_clust2.log.scale, distance = "euclidean",
+                        min.nc = 2, max.nc = 15, 
+                        method = "complete", index ="all")
+factoextra::fviz_nbclust(res.nbclust2) + theme_minimal() + ggtitle("NbClust's optimal # of clusters Group2")
+# Says optimal cluster number = 4
+
+#We can visualize the results with fviz_gap_stat which suggests four clusters as the optimal number of clusters.
+fviz_gap_stat(gap_stat1)  # said didnt converge in 10 iterations...
+fviz_gap_stat(gap_stat2) # said didnt converge in 10 iterations...
+
+# Making cluster plots
+# Cluster group 1: trying a couple different cluster groups
+set.seed(123)
+cluster1_final2 <- kmeans(dat_clust1.log.scale, 2, nstart = 25)
+cluster1_final3 <- kmeans(dat_clust1.log.scale, 3, nstart = 25)
+
+# Cluster group 2: trying a couple different cluster groups
+cluster2_final2 <- kmeans(dat_clust2.log.scale, 2, nstart = 25)
+cluster2_final3 <- kmeans(dat_clust2.log.scale, 3, nstart = 25)
+cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
+
+#visualize:
+fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
+#fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
+
+#fviz_cluster(cluster2_final2, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+#fviz_cluster(cluster2_final3, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+
+# Add cluster groups to dataframes, write to csv:
+# cluster group 1:
+dat_subClusts1 <- dat_clust1 %>% 
+  mutate(cluster = cluster1_final2$cluster)
+write_csv(x = dat_subClusts1, path = "data_output/flame3_clust1_subclusts.csv")
+
+# cluster group 2:
+dat_subClusts2 <- dat_clust2 %>% 
+  mutate(cluster = cluster2_final4$cluster) 
+write_csv(x = dat_subClusts1, path = "data_output/flame3_clust1_subclusts.csv")
+
+# Look at the cluster groups Spatially:
+write_csv(x = dat_clust1, path = "data_output/flame3_clust1.csv")
+f3_clust1.geodata.sf<- st_as_sf(flame2.geodatacsv, 
+                             coords = c("lon", "lat"), #specify lat lon cols
+                             remove = F, # don't remove these lat/lon cols from df
+                             crs = 4326) # add projection
+
+
