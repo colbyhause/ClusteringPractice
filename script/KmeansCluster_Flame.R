@@ -7,7 +7,7 @@ if(!require(rcompanion)){install.packages("rcompanion")}
 library(rcompanion)
 library(psych)
 library(MASS)
-
+library(RColorBrewer)
 dat <- readRDS("data/flame3.supercleaned.rds")
 
 # Determining the right transformation to use:
@@ -192,29 +192,11 @@ gap_stat <- clusGap(dat_rescaled, FUN = kmeans, nstart = 25,
                     K.max = 50, B = 50)
 print(gap_stat, method = "firstmax")
 #We can visualize the results with fviz_gap_stat which suggests four clusters as the optimal number of clusters.
+
 fviz_gap_stat(gap_stat) # shows that 10 iterations were not suffient (did not converge), so trying 50...shows that optimal is 12...WARNING: 50 iterations take a long time to run
 
 
-# since 2 methods gave 2 optiminal groups and the other gave 12 optimal groups, try running k means with both:
-
-set.seed(123)
-final_2 <- kmeans(dat_rescaled, 2, nstart = 25)
-print(final_2)
-
-final_12 <- kmeans(dat_rescaled, 12, nstart = 25)
-print(final_12)
-
-final_4 <- kmeans(dat_rescaled, 4, nstart = 25)
-print(final_12)
-#visualize:
-
-pdf("figure_output/f3.ClusterAnalysis.pdf")
-fviz_cluster(final_2, data = dat_rescaled, labelsize = NA)
-dev.off()
-fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
-
-
-# trying to determine number of clusters with NbClust package: this package provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
+# Determine number of clusters with NbClust package: this package provides 30 indices for determining the relevant number of clusters and proposes to users the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
 #install.packages("NbClust")
 library(NbClust)
 es.nbclust <- NbClust(dat_rescaled, distance = "euclidean",
@@ -224,24 +206,62 @@ factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's opti
 
 # comes out to optimal number of clusters is 2
 
+# since 2 methods gave 2 optiminal groups and the other gave 12 optimal groups, try running k means with both:
+# Whole River Cluster Analysis:----
+
+set.seed(123)
+final_2 <- kmeans(dat_rescaled, 2, nstart = 25)
+print(final_2)
+
+#final_12 <- kmeans(dat_rescaled, 12, nstart = 25)
+#print(final_12)
+
+#final_4 <- kmeans(dat_rescaled, 4, nstart = 25)
+#print(final_12)
+#visualize:
+
+pdf("figure_output/f3.ClusterAnalysis.pdf")
+fviz_cluster(final_2, data = dat_rescaled, labelsize = NA, main = " Whole River Cluster Analysis")
+dev.off()
+#fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
+
+# Put the cluster group back into original data 
+dat_wholeRiver_clustgrps<- dat_noNAs %>%
+  mutate(cluster = final_2$cluster)
+
+
+
 
 # Sub Cluster Analysis:----
+
+# Load and prep data:
+# dataframe:
+dat <- readRDS("data/flame3.supercleaned.rds")
+
+# remove missing values:
+which(is.na(dat))
+dat_noNAs <- na.omit(dat) # so having to use a dataset that is roughly half the size bc of all the rows I have to omit bc of NAs- talk to andrew about this. This cuts the data in half 
+which(is.na(dat_noNAs))
+# keep only columns that you need:
+dat_cols <- dat_noNAs[ , c(6:8, 10:15)]
 
 #Add cluster to data----
 #1. add the cluster group assignments to the dataset:
 
-dat_clustgrp<- dat_noNAs %>%
-  mutate(cluster = final_2$cluster) 
+dat_wholeRiver_clustgrps<- dat_noNAs %>%
+  mutate(cluster = final_2$cluster) # this is found in the code above under First Cluster Analysis , eventually rearrange all this to make better work flow 
 
 #2. make 2 dataframe from those clusters:----
 dat_clust1 <- dat_clustgrp %>% 
   filter(cluster == 1)
 dat_clust1_params<- dat_clust1[ , c(6:8, 11:15)]
+write_csv(x = dat_clust1_params, "data_output/f3.clust1group.csv")
   
 
 dat_clust2 <- dat_clustgrp %>% 
   filter(cluster == 2)
 dat_clust2_params<- dat_clust2[ , c(6:8, 11:15)]
+write_csv(x = dat_clust2_params, "data_output/f3.clust2group.csv")
 
 #3. normalize and scale data: ----
 #cluster1 df:
@@ -341,15 +361,15 @@ cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
 #visualize Plots:----
 #Cluster group 1:
 pdf(file = "figure_output/f3.grp1.subclusts.clusterPlot.pdf")
-fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
+fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot", ggtheme =theme_minimal())
 dev.off()
-fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
+#fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
 
 #Cluster group 2:
 #fviz_cluster(cluster2_final2, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 #fviz_cluster(cluster2_final3, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 pdf(file = "figure_output/f3.grp2.subclusts.clusterPlot.pdf")
-fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
+fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot", ggtheme =theme_minimal(),  palette = "Dark2")
 dev.off()
 
 #Spatialize Sub clusters: ----
@@ -381,7 +401,10 @@ library(viridis)
 gg_miss_var(as.data.frame(flame2.edited), show_pct= T)
 #install.packages("sf",dependencies = T) 
 library(sf)
-
+f3_wholeRiver.geodata.sf<- st_as_sf(dat_wholeRiver_clustgrps, 
+                                coords = c("lon", "lat"), #specify lat lon cols
+                                remove = F, # don't remove these lat/lon cols from df
+                                crs = 4326) # add projection
 
 f3_clust1.geodata.sf<- st_as_sf(f3.dat_subClusts1, 
                              coords = c("lon", "lat"), #specify lat lon cols
@@ -394,17 +417,24 @@ f3_clust2.geodata.sf<- st_as_sf(f3.dat_subClusts2,
                                 crs = 4326) # add projection
 
 # write spatial data to creat shp file----
+st_write(f3_wholeRiver.geodata.sf, "data_output/f3_wholeriver_clusts.shp", delete_dsn = T)
 st_write(f3_clust1.geodata.sf, "data_output/f3_clust1_subclusts.shp", delete_dsn = T)
 st_write(f3_clust2.geodata.sf, "data_output/f3_clust2_subclusts.shp", delete_dsn = T)
 
 # Look at plots with the clusters as the variable:----
 # plot spatial data: using base R
+# Whole River :
+pdf("figure_output/f3.spatial.wholeriver.clust.pdf")
+f3.wholeRiver.clustPlot<- plot(f3_wholeRiver.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Whole River Cluster Analysis", pal = c("rosybrown2", "turquoise3"))#, cex.lab=.6)
+dev.off()
 
+# Group1 cluster 
 pdf("figure_output/f3.spatial.clust1.subclusts.pdf")
 f3.clust1.subclustsPlot<- plot(f3_clust1.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 1 sub clusters")#, cex.lab=.6)
 dev.off()
 f3.clust1.subclustsPlot
 
+# Group 2 Cluster
 pdf("figure_output/f3.spatial.clust2.subclusts.pdf")
 f3.clust2.subclustsPlot<- plot(f3_clust2.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 2 sub clusters")#, cex.lab=4)
 dev.off()
@@ -430,4 +460,81 @@ f3.clust2.subclusts.tmap <- tm_shape(f3_clust2.geodata.sf["cluster"]) +
   tm_symbols(col="cluster",n = 5, title.col = "clusters", palette =  viridis(n=4, direction = -1), size = .1, border.lwd   = NA) 
 f3.clust2.subclusts.tmap
 tmap_save(f3.clust1.subclusts.tmap, "figure_output/f3.ClusterGrp1_subclusters.tmap.png")
+
+# Merge the subclust group1 and subclust group2 dataframes into 1 so you can make a map of the whole river with difference subclust groups:
+# first change the subclust group2 numbers so that 1 and 2 are different from the subclust group1
+dat_subClusts2_edit1and2 <- dat_subClusts2
+
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 1]  <- 3
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 2]  <- 4
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 3]  <- 5
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 4]  <- 6
+
+f3.wholeriver.subclusts <- rbind(dat_subClusts1, dat_subClusts2_edit1and2)
+# need to fix issue that 
+
+# make spatial:
+f3_wholeRiver_subclusts.geodata.sf<- st_as_sf(f3.wholeriver.subclusts, 
+                                    coords = c("lon", "lat"), #specify lat lon cols
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326) # add projection
+
+st_write(f3_wholeRiver_subclusts.geodata.sf, "data_output/f3_wholeriver_subclusts.shp", delete_dsn = T)
+
+# plot: colors not coming out correctly 
+pdf("figure_output/f3.spatial.wholeriver.subclusts.pdf")
+f3.wholeRiver.subclustsPlot<- plot(f3_wholeRiver_subclusts.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, pal = c("rosybrown2", "turquoise3", "purple", "red", "orange", "yellow"), breaks = c(1, 2, 3, 4, 5, 6, 7))#, cex.lab=.6)
+dev.off()
+
+
+
+# Make a shapefile for each cluster group to import into qgis so you can manipulate those colors
+# first: split into dataframes by group  and cluster
+grp1_subclust1 <- dat_subClusts1[dat_subClusts1$cluster == 1, ]
+grp1_subclust2 <- dat_subClusts1[dat_subClusts1$cluster == 2, ]
+
+grp2_subclust1 <- dat_subClusts2[dat_subClusts2$cluster == 1, ]
+grp2_subclust2 <- dat_subClusts2[dat_subClusts2$cluster == 2, ]
+grp2_subclust3 <- dat_subClusts2[dat_subClusts2$cluster == 3, ]
+grp2_subclust4 <- dat_subClusts2[dat_subClusts2$cluster == 4, ]
+
+# create shapefiles:
+f3_grp1_subclust1.geodata.sf<- st_as_sf(grp1_subclust1, 
+                                coords = c("lon", "lat"), #specify lat lon cols
+                                remove = F, # don't remove these lat/lon cols from df
+                                crs = 4326) # add projection
+
+f3_grp1_subclust2.geodata.sf<- st_as_sf(grp1_subclust2, 
+                                        coords = c("lon", "lat"), #specify lat lon cols
+                                        remove = F, # don't remove these lat/lon cols from df
+                                        crs = 4326) # add projection
+
+f3_grp2_subclust1.geodata.sf<- st_as_sf(grp2_subclust1, 
+                                        coords = c("lon", "lat"), #specify lat lon cols
+                                        remove = F, # don't remove these lat/lon cols from df
+                                        crs = 4326) # add projection
+
+f3_grp2_subclust2.geodata.sf<- st_as_sf(grp2_subclust2, 
+                                        coords = c("lon", "lat"), #specify lat lon cols
+                                        remove = F, # don't remove these lat/lon cols from df
+                                        crs = 4326) # add projection
+
+f3_grp2_subclust3.geodata.sf<- st_as_sf(grp2_subclust3, 
+                                        coords = c("lon", "lat"), #specify lat lon cols
+                                        remove = F, # don't remove these lat/lon cols from df
+                                        crs = 4326) # add projection
+
+f3_grp2_subclust4.geodata.sf<- st_as_sf(grp2_subclust4, 
+                                        coords = c("lon", "lat"), #specify lat lon cols
+                                        remove = F, # don't remove these lat/lon cols from df
+                                        crs = 4326) # add projection
+
+# wrte spatial files:
+st_write(f3_grp1_subclust1.geodata.sf, "data_output/f3_grp1_subclust1.shp", delete_dsn = T)
+st_write(f3_grp1_subclust2.geodata.sf, "data_output/f3_grp1_subclust2.shp", delete_dsn = T)
+
+st_write(f3_grp2_subclust1.geodata.sf, "data_output/f3_grp2_subclust1.shp", delete_dsn = T)
+st_write(f3_grp2_subclust2.geodata.sf, "data_output/f3_grp2_subclust2.shp", delete_dsn = T)
+st_write(f3_grp2_subclust3.geodata.sf, "data_output/f3_grp2_subclust3.shp", delete_dsn = T)
+st_write(f3_grp2_subclust4.geodata.sf, "data_output/f3_grp2_subclust4.shp", delete_dsn = T)
 
