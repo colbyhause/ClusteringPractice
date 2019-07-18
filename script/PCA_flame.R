@@ -56,15 +56,15 @@ round(PVE, 2)
 # so 78% of the variace is explained by PC1, 12% of variance explained by PC2
 
 #calculations by hand:----
-#these give same results as above, I am just dloing them by hand to understand what is going on
+#these give same results as above, I am just doing them by hand to understand what is going on
 # Calculate eigenvalues & eigenvectors ----
-f3.cov <- cov(dat_log_scaled)
-f3.eigen <- eigen(f3.cov)
+f3.cov <- cov(dat_log_scaled) # this is the covariance matrix
+f3.eigen <- eigen(f3.cov) # 
 str(f3.eigen)
 
 #Extract the loadings
 (phi <- f3.eigen$vectors[,1:2])
-#swicth eigen vectors to a pos direction:
+#swittch eigen vectors to a pos direction:
 phi <- -phi
 row.names(phi) <- c("temp", "spCond", "pH", "ODO", "turb", "fdom", "CHL", "NO3")
 colnames(phi) <- c("PC1", "PC2")
@@ -72,9 +72,10 @@ phi
 
 # To get the percent of variance in allthe variables
 #This is the same as dividing the factor's eigenvalueby the number of variables.
-phi [ ,1]/8
-#       temp      spCond          pH         ODO        turb        fdom         CHL         NO3 
-#0.04755880  0.04921979  0.03256761 -0.04002733  0.04461953  0.04920913  0.04719898  0.04046665 
+f3.eigen$values
+(f3.eigen$values)/8
+#0.7848133483 0.1233119461 0.0552868682 0.0210671182 0.0087514945 0.0051203883 0.0012521998 0.0003966367
+#this is the same output from the code above that comnputes the variance explained by each principle component
 
 # PCA on sub clusters:----
 
@@ -128,10 +129,10 @@ round(PVE_clust2, 2)
 
 # Whole River Cluster Analysis PCA derived loadings: 
 pca_result$rotation
-biplot(pca_result, scale = 0) # plot
+biplot(pca_result, scale = 0, main= "Whole River") # plot
 # Group1 (Upper River) Sub Cluster Analysis PCA-derived loadings: 
 pca_clust1_result$rotation 
-biplot(pca_clust1_result, scale = 0) # plot
+biplot(pca_clust1_result, scale = 0, main = "Upper River sub-cluster") # plot
 # Group2 (Lower River/ Delta) Sub Cluster Analysis PCA-derived loadings: 
 pca_clust2_result$rotation
-biplot(pca_clust2_result, scale = 0) # plot
+biplot(pca_clust2_result, scale = 0, main = "Lower River/Delta sub-cluster") # plot
