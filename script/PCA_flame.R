@@ -25,10 +25,11 @@ dat_log <- apply(dat_cols, 2, log)
 # now rescale data:
 dat_log_scaled<- apply(dat_log, 2, scale)
 
-# calc prcomp for FULL DATA SET: not subclustered one:----
+# calc prcomp for Whole River DATA SET: not subclustered one:----
 # this  function centers the variables to have mean zero.
 pca_result <- prcomp(dat_log_scaled, scale = TRUE)
 names(pca_result) # The center and scale components correspond to the means and standard deviations of the variables that were used for scaling prior to implementing PCA.
+print(pca_result)
 # means
 pca_result$center
 # standard deviations
@@ -125,14 +126,54 @@ round(PVE_clust2, 2)
 # 0.53 0.24 0.12 0.05 0.03 0.01 0.01 0.00
 
 
-# Summary of loadings table to show AR:====
+# Summary of loadings table to show AR:----
 
 # Whole River Cluster Analysis PCA derived loadings: 
-pca_result$rotation
+wholeriver_loadings <- pca_result$rotation 
+wholeriver_loadings <- as.data.frame(wholeriver_loadings)
 biplot(pca_result, scale = 0, main= "Whole River") # plot
+write_csv(wholeriver_loadings, "data_output/wholeriver_loadings.csv")
+
 # Group1 (Upper River) Sub Cluster Analysis PCA-derived loadings: 
-pca_clust1_result$rotation 
+clust1_loadings <- pca_clust1_result$rotation 
+clust1_loadings <- as.data.frame(clust1_loadings)
 biplot(pca_clust1_result, scale = 0, main = "Upper River sub-cluster") # plot
+write_csv(clust1_loadings, "data_output/clust1_loadings.csv")
 # Group2 (Lower River/ Delta) Sub Cluster Analysis PCA-derived loadings: 
-pca_clust2_result$rotation
+clust2_loadings <- pca_clust2_result$rotation
+clust2_loadings <- as.data.frame(clust2_loadings)
 biplot(pca_clust2_result, scale = 0, main = "Lower River/Delta sub-cluster") # plot
+write_csv(clust2_loadings, "data_output/clust2_loadings.csv")
+
+
+# Determining PC scores ----
+
+#1.Calculate eigenvalues & eigenvectors
+f3.cov <- cov(dat_log_scaled) # this is the covariance matrix
+f3.eigen <- eigen(f3.cov) # 
+str(f3.eigen)
+
+#Extract the loadings
+(phi <- f3.eigen$vectors[,1:8])
+#swittch eigen vectors to a pos direction:
+phi <- -phi
+row.names(phi) <- c("temp", "spCond", "pH", "ODO", "turb", "fdom", "CHL", "NO3")
+colnames(phi) <- c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8")
+phi
+
+# Calculate Principal Components scores
+PC1 <- as.matrix(dat_log_scaled) %*% phi[,1]
+PC2 <- as.matrix(dat_log_scaled) %*% phi[,2]
+PC3 <- as.matrix(dat_log_scaled) %*% phi[,3]
+PC4 <- as.matrix(dat_log_scaled) %*% phi[,4]
+PC5 <- as.matrix(dat_log_scaled) %*% phi[,5]
+PC6 <- as.matrix(dat_log_scaled) %*% phi[,6]
+PC7 <- as.matrix(dat_log_scaled) %*% phi[,7]
+PC8 <- as.matrix(dat_log_scaled) %*% phi[,8]
+
+# Look at Just PC1 and PC2 on graph:
+ggplot(PCscores_df[,1:2]) +
+       geom_point(aes(x = PC1,y = PC2)) 
+# write PC1 and PC2 to own dataframe to do a kmeans analysis on
+PCscores_1_2 <- PCscores_df[,1:2] 
+
