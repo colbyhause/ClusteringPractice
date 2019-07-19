@@ -252,13 +252,13 @@ dat_wholeRiver_clustgrps<- dat_noNAs %>%
   mutate(cluster = final_2$cluster) # this is found in the code above under First Cluster Analysis , eventually rearrange all this to make better work flow 
 
 #2. make 2 dataframe from those clusters:----
-dat_clust1 <- dat_clustgrp %>% 
+dat_clust1 <- dat_wholeRiver_clustgrps %>% 
   filter(cluster == 1)
 dat_clust1_params<- dat_clust1[ , c(6:8, 11:15)]
 write_csv(x = dat_clust1_params, "data_output/f3.clust1group.csv")
   
 
-dat_clust2 <- dat_clustgrp %>% 
+dat_clust2 <- dat_wholeRiver_clustgrps %>% 
   filter(cluster == 2)
 dat_clust2_params<- dat_clust2[ , c(6:8, 11:15)]
 write_csv(x = dat_clust2_params, "data_output/f3.clust2group.csv")
@@ -371,6 +371,7 @@ dev.off()
 pdf(file = "figure_output/f3.grp2.subclusts.clusterPlot.pdf")
 fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot", ggtheme =theme_minimal(),  palette = "Dark2")
 dev.off()
+
 
 #Spatialize Sub clusters: ----
 
@@ -537,4 +538,37 @@ st_write(f3_grp2_subclust1.geodata.sf, "data_output/f3_grp2_subclust1.shp", dele
 st_write(f3_grp2_subclust2.geodata.sf, "data_output/f3_grp2_subclust2.shp", delete_dsn = T)
 st_write(f3_grp2_subclust3.geodata.sf, "data_output/f3_grp2_subclust3.shp", delete_dsn = T)
 st_write(f3_grp2_subclust4.geodata.sf, "data_output/f3_grp2_subclust4.shp", delete_dsn = T)
+
+# k means analysis on on the PC1 and PC2 dimensions from PCA analysis----
+kcluster_PCscores <- kmeans(PCscores_1_2, 2, nstart = 25)
+#visualize:
+pdf(file = "figure_output/PCA_wholeriver_clust_kmeans.pdf")
+fviz_cluster(kcluster_PCscores, data = PCscores_1_2, labelsize = NA, main = "Cluster on PC1 and PC2 Plot", ggtheme =theme_minimal())
+dev.off()
+# looks exactly like the k means analysis on the raw data
+
+# split up the data set by those 2 clusters, do another cluster analysis on that:
+PCA_wholeRiver_clustgrps<-PCscores_1_2  %>%
+  mutate(cluster = kcluster_PCscores$cluster)
+# make 2 dataframes from above dataset
+PCA_subclust1 <-PCA_wholeRiver_clustgrps %>% 
+filter(cluster == 1) 
+PCA_subclust1 <- PCA_subclust1[ , c(1:2)] # this group has one more data point than when split by kmeans 
+
+PCA_subclust2 <-PCA_wholeRiver_clustgrps %>% 
+  filter(cluster == 2)
+PCA_subclust2 <- PCA_subclust2[ , c(1:2)] # that obnly different in the split is this group has 1 less data point than when I did kmeans analysis on raw data 
+
+# now do kmeans analysis again on these 2 groups
+PC_subcluster1final_2 <- kmeans(PCA_subclust1, 2, nstart = 25)
+PC_subcluster2final_4 <- kmeans(PCA_subclust2, 4, nstart = 25)
+#visualize 
+pdf(file = "figure_output/PCA_subclust1_kmeans.pdf")
+fviz_cluster(PC_subcluster1final_2, data = PCA_subclust1, labelsize = NA, main = "Subcluster 1, PC1 and PC2", ggtheme =theme_minimal())
+dev.off()
+
+pdf(file = "figure_output/PCA_subclust2_kmeans.pdf")
+fviz_cluster(PC_subcluster2final_4, data = PCA_subclust2, labelsize = NA, main = "Subcluster 2, PC1 and PC2", ggtheme =theme_minimal())
+dev.off()
+
 
