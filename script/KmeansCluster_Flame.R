@@ -152,7 +152,7 @@ which(is.na(dat))
 dat_noNAs <- na.omit(dat) # so having to use a dataset that is roughly half the size bc of all the rows I have to omit bc of NAs- talk to andrew about this. This cuts the data in half 
 which(is.na(dat_noNAs))
 # keep only columns that you need:
-dat_cols <- dat_noNAs[ , c(6:8, 10:15)]
+dat_cols <- dat_noNAs[ , c(6:8, 11:15)]
 
 # log transform:
 dat_transformed <- apply(dat_cols, 2, log) 
@@ -221,7 +221,8 @@ print(final_2)
 #visualize:
 
 pdf("figure_output/f3.ClusterAnalysis.pdf")
-fviz_cluster(final_2, data = dat_rescaled, labelsize = NA, main = " Whole River Cluster Analysis")
+kmeans_wholeriver <- fviz_cluster(final_2, data = dat_rescaled, labelsize = NA, main = " Whole River Cluster Analysis")
+dat_from_fviz <-test$data
 dev.off()
 #fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
 
@@ -361,7 +362,7 @@ cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
 #visualize Plots:----
 #Cluster group 1:
 pdf(file = "figure_output/f3.grp1.subclusts.clusterPlot.pdf")
-fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot", ggtheme =theme_minimal())
+kmeans_subcluster1 <- fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Upper River Cluster Analysis", ggtheme =theme_minimal())
 dev.off()
 #fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
 
@@ -369,7 +370,7 @@ dev.off()
 #fviz_cluster(cluster2_final2, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 #fviz_cluster(cluster2_final3, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 pdf(file = "figure_output/f3.grp2.subclusts.clusterPlot.pdf")
-fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot", ggtheme =theme_minimal(),  palette = "Dark2")
+kmeans_subcluster2<- fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Lower River/ Delta Cluster Anlysis", ggtheme =theme_minimal(),  palette = "Dark2")
 dev.off()
 
 
@@ -539,36 +540,30 @@ st_write(f3_grp2_subclust2.geodata.sf, "data_output/f3_grp2_subclust2.shp", dele
 st_write(f3_grp2_subclust3.geodata.sf, "data_output/f3_grp2_subclust3.shp", delete_dsn = T)
 st_write(f3_grp2_subclust4.geodata.sf, "data_output/f3_grp2_subclust4.shp", delete_dsn = T)
 
-# k means analysis on on the PC1 and PC2 dimensions from PCA analysis----
-kcluster_PCscores <- kmeans(PCscores_1_2, 2, nstart = 25)
-#visualize:
-pdf(file = "figure_output/PCA_wholeriver_clust_kmeans.pdf")
-fviz_cluster(kcluster_PCscores, data = PCscores_1_2, labelsize = NA, main = "Cluster on PC1 and PC2 Plot", ggtheme =theme_minimal())
-dev.off()
-# looks exactly like the k means analysis on the raw data
 
-# split up the data set by those 2 clusters, do another cluster analysis on that:
-PCA_wholeRiver_clustgrps<-PCscores_1_2  %>%
-  mutate(cluster = kcluster_PCscores$cluster)
-# make 2 dataframes from above dataset
-PCA_subclust1 <-PCA_wholeRiver_clustgrps %>% 
-filter(cluster == 1) 
-PCA_subclust1 <- PCA_subclust1[ , c(1:2)] # this group has one more data point than when split by kmeans 
+# Note to self:
+# Andrew was concerned about using the component loadings, or coefficient correlations, from the PCA to directly interpret the clusters. Have a day and a half of reseraching and googling this issue, I determined that it is totally fine to make a direct unterpretation of our kmeans cluster plots using the loadings for the PCA.
+# Reason: The kmeans analysis only creates a massive distance matrix and calculates clusters based on the position of the centroids, and the number of centroids are determined by you (when you set the number of groups for the cluster). There is now way to plot this directly, as there are too many dimensions.You mnust then, as a step in the plotting process, prerform a PCA to reduce those dimensions down. If you looking at how the function fviz_cluster is working ( getAnywhere(fviz_cluster)) you will see that it calculates a PCA and what you are actually plotting are the PC1 and PC2 scores from those results. Below is also a link that basically says this same thing:
+# https://www.datanovia.com/en/lessons/k-means-clustering-in-r-algorith-and-practical-examples/#k-means-algorithm
+# Som to validate this is, as in, make sure that the PCA I calulated by hand is the same data as my cluster plot, I can look st the PC scores that I calculated and compare them with the data output from the fviz_cluster results for both the whole river analysis and the subcluster analysis:
+# PC scores for whole river PCA analysis: 
+# first need to make them point in the positive direction:
+head(pca_result$x)
+plot(x =  pca_result$x[ , 1], y = pca_result$x[, 2])
+# PC scores being plotted from the whole river fviz_zluster function:
+kmeans_wholeriver$data
+plot(x = kmeans_wholeriver$data[ ,2], y = kmeans_wholeriver$data[ ,3]) # same plot as above
 
-PCA_subclust2 <-PCA_wholeRiver_clustgrps %>% 
-  filter(cluster == 2)
-PCA_subclust2 <- PCA_subclust2[ , c(1:2)] # that obnly different in the split is this group has 1 less data point than when I did kmeans analysis on raw data 
+# Now verify for the subcluster results:
+# PC scores from PCA on subcluster 1: ( first need to make them point in the positive direction:)
+head(pca_clust1_result$x)
+plot(x =  pca_clust1_result$x[ , 1], y = pca_clust1_result$x[, 2])
 
-# now do kmeans analysis again on these 2 groups
-PC_subcluster1final_2 <- kmeans(PCA_subclust1, 2, nstart = 25)
-PC_subcluster2final_4 <- kmeans(PCA_subclust2, 4, nstart = 25)
-#visualize 
-pdf(file = "figure_output/PCA_subclust1_kmeans.pdf")
-fviz_cluster(PC_subcluster1final_2, data = PCA_subclust1, labelsize = NA, main = "Subcluster 1, PC1 and PC2", ggtheme =theme_minimal())
-dev.off()
+head(pca_clust2_result$x)
+plot(x =  pca_clust2_result$x[ , 1], y = pca_clust2_result$x[, 2])
+# PC scores being plotted from the subcluster 1 fviz_zluster function:
+kmeans_subcluster1$data
+plot(x = kmeans_subcluster1$data[ ,2], y = kmeans_subcluster1$data[ ,3]) # same plot as above
 
-pdf(file = "figure_output/PCA_subclust2_kmeans.pdf")
-fviz_cluster(PC_subcluster2final_4, data = PCA_subclust2, labelsize = NA, main = "Subcluster 2, PC1 and PC2", ggtheme =theme_minimal())
-dev.off()
-
-
+kmeans_subcluster2$data
+plot(x = kmeans_subcluster2$data[ ,2], y = kmeans_subcluster2$data[ ,3]) # same plot as above
