@@ -133,7 +133,7 @@ table(sub_grp)
 ##  7 12 19 12
 
 # use cuttree output to add the cliuster number to each observation in our data
-USArrests %>%
+USArrests_clustTable <- USArrests %>%
 mutate(cluster = sub_grp) %>%
   head
 
