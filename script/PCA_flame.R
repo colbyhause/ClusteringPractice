@@ -35,6 +35,7 @@ pca_result$center
 # standard deviations
 pca_result$scale
 # PCA loadings:----
+# file:///Users/colbyhause/Downloads/AtchleyOct19%20(1).pdf this pdf give definition of loadings 
 pca_result$rotation <- -pca_result$rotation # switch the sign bc by default eigenvectors point in the neg direction
 pca_result$rotation
 
@@ -102,14 +103,19 @@ pca_clust1_result <- prcomp(f3.clust1.log.scaled, scale = TRUE)
 pca_clust2_result <- prcomp(f3.clust2.log.scaled, scale = TRUE)
 
 # look at plot:
+pdf(file = "figure_output/PCA_biplot_subclust1.pdf")
 biplot(pca_clust1_result, scale = 0) # cluster group 1
-biplot(pca_clust2_result, scale = 0) # cluster group 2 
+dev.off()
 
+pdf(file = "figure_output/PCA_biplot_subclust2.pdf")
+biplot(pca_clust2_result, scale = 0) # cluster group 2 
+dev.off()
 # subcluster loadings:
-pca_clust1_result$rotation <- -pca_clust1_result$rotation
+# file:///Users/colbyhause/Downloads/AtchleyOct19%20(1).pdf this pdf gives definition of loadings, which are akso the correlation coefficients 
+#pca_clust1_result$rotation <- -pca_clust1_result$rotation ....the website says to make multiply by -1 to switch values to the postive direction, but since I didnt do this with the PC scores I am going to stay consistent and opt out of doing it here 
 pca_clust1_result$rotation 
 
-pca_clust2_result$rotation <- -pca_clust2_result$rotation
+#pca_clust2_result$rotation <- -pca_clust2_result$rotation
 pca_clust2_result$rotation
 
 #The variance explained by each principal component is obtained by squaring these values:
@@ -170,6 +176,8 @@ PC5 <- as.matrix(dat_log_scaled) %*% phi[,5]
 PC6 <- as.matrix(dat_log_scaled) %*% phi[,6]
 PC7 <- as.matrix(dat_log_scaled) %*% phi[,7]
 PC8 <- as.matrix(dat_log_scaled) %*% phi[,8]
+
+PCscores_df<- data.frame(PC1, PC2, PC3, PC4, PC5,PC6,PC7, PC8)
 
 # Look at Just PC1 and PC2 on graph:
 ggplot(PCscores_df[,1:2]) +
