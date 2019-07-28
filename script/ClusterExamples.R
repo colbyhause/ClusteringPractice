@@ -149,6 +149,7 @@ df <- scale(df)
 head(df)
 
 # calculate dissimilarity by getting distances:
+class(df)
 distance <- get_dist(df) # calculate distances
 fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) # visualize by creating a dustance matrix
 
@@ -196,7 +197,8 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 # Silhouette method
 # Gap statistic
 
-#1. Elbow method: want to determine how many clusters are needed so that the total within-cluster sum of square (wss) (which measures the compactness of the clustering) is as small as possible and does not get much smaller with more groups
+#1. Elbow method: ----
+# want to determine how many clusters are needed so that the total within-cluster sum of square (wss) (which measures the compactness of the clustering) is as small as possible and does not get much smaller with more groups
 # do this by calculating the wss over a range of group options (ie. 1-10) and then plot those values. Where the curve bends is the appropriate number of groups 
 
 wss <- function(k) {
@@ -217,7 +219,7 @@ plot(k.values, wss_values,
 set.seed(123)
 fviz_nbclust(df, kmeans, method = "wss")
 
-#2. Silhouette method:
+#2. Silhouette method:----
 #This method measure the quality of the clustering. So a high average silhouette width indicates good clustering, so when plotting this method the group that is maximized is the optimal group number for clustering:
 
 # the long way:
@@ -242,7 +244,8 @@ plot(k.values, avg_sil_values,
 # wrapped up into one function:
 fviz_nbclust(df, kmeans, method = "silhouette") # so says 2 is the optimal number of groups, but 4 groups is a close second option
 
-#3. Gap statistic: this approach can be applied to ANY clustering method (kmeans, hierarchical, etc.). The gap statistic compares the total intracluster variation with different values of K with their expected values under null reference distribution of the data (i.e. a distribution with no obvious clustering).
+#3. Gap statistic: ----
+#this approach can be applied to ANY clustering method (kmeans, hierarchical, etc.). The gap statistic compares the total intracluster variation with different values of K with their expected values under null reference distribution of the data (i.e. a distribution with no obvious clustering).
 #SO: That is, for each variable  in the data set we compute its range and generate values for the n points uniformly from the interval min to max.
 
 # compute gap statistic
