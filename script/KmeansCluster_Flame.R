@@ -220,9 +220,10 @@ print(final_2)
 #print(final_12)
 #visualize:
 
-pdf("figure_output/f3.ClusterAnalysis.pdf")
-kmeans_wholeriver <- fviz_cluster(final_2, data = dat_rescaled, labelsize = NA, main = " Whole River Cluster Analysis")
-dat_from_fviz <-test$data
+pdf("figure_output/f3.wholeRiverClusterAnalysis.pdf")
+kmeans_wholeriver <- fviz_cluster(final_2, data = dat_rescaled, labelsize = NA, main = " Whole River Cluster Analysis", xlab = "PC1", ylab ="PC2",ggtheme =theme_minimal())
+kmeans_wholeriver
+#dat_from_fviz <-test$data
 dev.off()
 #fviz_cluster(final_12, data = dat_rescaled,  labelsize = NA)
 
@@ -348,7 +349,7 @@ factoextra::fviz_nbclust(res.nbclust2) + theme_minimal() + ggtitle("NbClust's op
 fviz_gap_stat(gap_stat1)  # said didnt converge in 10 iterations...
 fviz_gap_stat(gap_stat2) # said didnt converge in 10 iterations...
 
-# Cluster plots----
+# SubCluster plots----
 # Cluster group 1: trying a couple different cluster groups
 set.seed(123)
 cluster1_final2 <- kmeans(dat_clust1.log.scale, 2, nstart = 25)
@@ -362,7 +363,8 @@ cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
 #visualize Plots:----
 #Cluster group 1:
 pdf(file = "figure_output/f3.grp1.subclusts.clusterPlot.pdf")
-kmeans_subcluster1 <- fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Upper River Cluster Analysis", ggtheme =theme_minimal())
+kmeans_subcluster1 <- fviz_cluster(cluster1_final2, data = dat_clust1.log.scale, labelsize = NA, main = "Upper River Cluster Analysis", ggtheme =theme_minimal(), xlab = "PC1", ylab ="PC2" )
+kmeans_subcluster1
 dev.off()
 #fviz_cluster(cluster1_final3, data = dat_clust1.log.scale, labelsize = NA, main = "Cluster Group 1 Plot")
 
@@ -370,7 +372,8 @@ dev.off()
 #fviz_cluster(cluster2_final2, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 #fviz_cluster(cluster2_final3, data = dat_clust2.log.scale, labelsize = NA, main = "Cluster Group 2 Plot")
 pdf(file = "figure_output/f3.grp2.subclusts.clusterPlot.pdf")
-kmeans_subcluster2<- fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Lower River/ Delta Cluster Anlysis", ggtheme =theme_minimal(),  palette = "Dark2")
+kmeans_subcluster2<- fviz_cluster(cluster2_final4, data = dat_clust2.log.scale, labelsize = NA, main = "Lower River/ Delta Cluster Anlysis", ggtheme =theme_minimal(),  palette = "Dark2", xlab = "PC1", ylab ="PC2")
+kmeans_subcluster2
 dev.off()
 
 
