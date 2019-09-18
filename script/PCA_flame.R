@@ -25,7 +25,7 @@ dat_log <- apply(dat_cols, 2, log)
 # now rescale data:
 dat_log_scaled<- apply(dat_log, 2, scale)
 
-# calc prcomp for Whole River DATA SET: not subclustered one:----
+# calc PCA for Whole River DATA SET: not subclustered one:----
 # this  function centers the variables to have mean zero.
 pca_result <- prcomp(dat_log_scaled, scale = TRUE)
 names(pca_result) # The center and scale components correspond to the means and standard deviations of the variables that were used for scaling prior to implementing PCA.
@@ -44,7 +44,9 @@ pca_result$x <- - pca_result$x # also make them point in the positive direction
 head(pca_result$x)
 # Plot PCA:----
 # this by default only plots principle components 1 and 2
-biplot(pca_result, scale = 0)
+pdf(file = "figure_output/PCA_biplot_WholeRiver.pdf")
+biplot(pca_result, scale = 0, main ="Biplot Whole River T3" )
+dev.off()
 # can make it plot other PCs with choices argument:
 #biplot(pca_result, scale = 0, choices = 3:4) shows just 1 blob bc no/very little variace 
 
