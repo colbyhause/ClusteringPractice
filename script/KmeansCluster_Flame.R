@@ -34,16 +34,13 @@ plotNormalHistogram(T_log)
 T_sqrt = sqrt(turb)
 plotNormalHistogram(T_sqrt)
 
-
-
-
 # going to go with log transformation- kind of an arbitrary decision...
 # transform data:
 dat_transformed <- apply(dat[ , c(6:8, 10:15)], 2, log) 
 # now rescale data:
 dat_rescaled <- apply(dat_transformed, 2, scale)
 
-# first try clustering on just turbidity data :
+# first try clustering on just turbidity data:
 turb_rescaled <-dat_rescaled[ ,6]
 #remove missing values:
 turb_rescaled <- turb_rescaled[!is.na(turb_rescaled)]
@@ -153,7 +150,7 @@ dat_noNAs <- na.omit(dat) # so having to use a dataset that is roughly half the 
 which(is.na(dat_noNAs))
 # keep only columns that you need:
 dat_cols <- dat_noNAs[ , c(6:8, 11:15)]
-
+class(dat_cols)
 # log transform:
 dat_transformed <- apply(dat_cols, 2, log) 
 # now rescale data:
@@ -231,9 +228,6 @@ dev.off()
 dat_wholeRiver_clustgrps<- dat_noNAs %>%
   mutate(cluster = final_2$cluster)
 
-
-
-
 # Sub Cluster Analysis:----
 
 # Load and prep data:
@@ -246,19 +240,19 @@ dat_noNAs <- na.omit(dat) # so having to use a dataset that is roughly half the 
 which(is.na(dat_noNAs))
 # keep only columns that you need:
 dat_cols <- dat_noNAs[ , c(6:8, 10:15)]
-
 #Add cluster to data----
 #1. add the cluster group assignments to the dataset:
 
 dat_wholeRiver_clustgrps<- dat_noNAs %>%
-  mutate(cluster = final_2$cluster) # this is found in the code above under First Cluster Analysis , eventually rearrange all this to make better work flow 
+  mutate(cluster = final_2$cluster) # this is found in the code above under First Cluster Analysis , eventually rearrange all this to make better work flow
+  class(dat_wholeRiver_clustgrps) 
 
 #2. make 2 dataframe from those clusters:----
+class(dat_wholeRiver_clustgrps)
 dat_clust1 <- dat_wholeRiver_clustgrps %>% 
   filter(cluster == 1)
 dat_clust1_params<- dat_clust1[ , c(6:8, 11:15)]
 write_csv(x = dat_clust1_params, "data_output/f3.clust1group.csv")
-  
 
 dat_clust2 <- dat_wholeRiver_clustgrps %>% 
   filter(cluster == 2)
@@ -352,13 +346,13 @@ fviz_gap_stat(gap_stat2) # said didnt converge in 10 iterations...
 # SubCluster plots----
 # Cluster group 1: trying a couple different cluster groups
 set.seed(123)
-cluster1_final2 <- kmeans(dat_clust1.log.scale, 2, nstart = 25)
+cluster1_final2 <- kmeans(dat_clust1.log.scale, 2, nstart = 25) 
 #cluster1_final3 <- kmeans(dat_clust1.log.scale, 3, nstart = 25)
 
 # Cluster group 2: trying a couple different cluster groups
 #cluster2_final2 <- kmeans(dat_clust2.log.scale, 2, nstart = 25)
 #cluster2_final3 <- kmeans(dat_clust2.log.scale, 3, nstart = 25)
-cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25)
+cluster2_final4 <- kmeans(dat_clust2.log.scale, 4, nstart = 25) 
 
 #visualize Plots:----
 #Cluster group 1:
@@ -470,12 +464,17 @@ tmap_save(f3.clust1.subclusts.tmap, "figure_output/f3.ClusterGrp1_subclusters.tm
 # first change the subclust group2 numbers so that 1 and 2 are different from the subclust group1
 dat_subClusts2_edit1and2 <- dat_subClusts2
 
-dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 1]  <- 3
-dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 2]  <- 4
-dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 3]  <- 5
-dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 4]  <- 6
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 1]  <- 5
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 2]  <- 6
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 3]  <- 7
+dat_subClusts2_edit1and2$cluster[dat_subClusts2_edit1and2$cluster == 4]  <- 8
 
 f3.wholeriver.subclusts <- rbind(dat_subClusts1, dat_subClusts2_edit1and2)
+unique(f3.wholeriver.subclusts$cluster)
+unique(dat_subClusts2_edit1and2$cluster)
+unique(dat_subClusts2$cluster)
+unique(dat_subClusts1$cluster)
+
 # need to fix issue that 
 
 # make spatial:
@@ -486,12 +485,12 @@ f3_wholeRiver_subclusts.geodata.sf<- st_as_sf(f3.wholeriver.subclusts,
 
 st_write(f3_wholeRiver_subclusts.geodata.sf, "data_output/f3_wholeriver_subclusts.shp", delete_dsn = T)
 
-# plot: colors not coming out correctly 
+# plot:
 pdf("figure_output/f3.spatial.wholeriver.subclusts.pdf")
-f3.wholeRiver.subclustsPlot<- plot(f3_wholeRiver_subclusts.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, pal = c("rosybrown2", "turquoise3", "purple", "red", "orange", "yellow"), breaks = c(1, 2, 3, 4, 5, 6, 7))#, cex.lab=.6)
+f3.wholeRiver.subclustsPlot<- plot(f3_wholeRiver_subclusts.geodata.sf["Subcluster"],graticule = TRUE, axes = TRUE)
 dev.off()
 
-
+f3.clust2.subclustsPlot<- plot(f3_clust2.geodata.sf["cluster"],graticule = TRUE, axes = TRUE, main="Cluster 2 sub clusters")#, cex.lab=4)
 
 # Make a shapefile for each cluster group to import into qgis so you can manipulate those colors
 # first: split into dataframes by group  and cluster
