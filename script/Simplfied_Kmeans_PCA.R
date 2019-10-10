@@ -61,7 +61,7 @@ library(NbClust)
 es.nbclust <- NbClust(dat_no_pH, distance = "euclidean",
                       min.nc = 2, max.nc = 15, 
                       method = "complete", index ="all")
-factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's optimal number of clusters") # says 4 clusters are best
+factoextra::fviz_nbclust(es.nbclust) + theme_minimal() + ggtitle("NbClust's optimal number of clusters") 
 
 # Plot kmean analysis----
 set.seed(123)
@@ -145,6 +145,7 @@ dat_no_pH <- data.frame(dat_no_pH)
 #Add cluster groups:
 wholeRiver_nopH_clustgrps<-  dat_no_pH%>%
   mutate(cluster = wholeriver_nopH_clusters) # this is found in the code above under First Cluster Analysis
+
 
 #3b. Make dataframes of those clusters:
 dat_nopH_clust1 <- wholeRiver_nopH_clustgrps %>% 
