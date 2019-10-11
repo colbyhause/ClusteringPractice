@@ -8,7 +8,8 @@ library(factoextra) # clustering visualization
 library(dendextend) # for comparing two dendrograms
 
 # load and prep data:
-  dat <- readRDS("data/flame3.supercleaned.rds")
+  #dat <- readRDS("data/flame3.supercleaned.rds")
+  dat <- readRDS("data/flame2.supercleaned.rds")
 
 # remove missing values:
 which(is.na(dat))
