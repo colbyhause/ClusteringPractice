@@ -17,6 +17,14 @@ library(naniar)
 library(tidyverse)
 library(udunits2)
 #install.packages("tmap")
+install.packages("mclust")
+install.packages("vegan")
+install.packages("fpc")
+library(fpc)
+library(vegan)
+install.packages("corrplot")
+library(corrplot)
+library(mclust)
 library(tmap)
 #install.packages("viridis")
 library(viridis)
@@ -27,21 +35,27 @@ library(sf)
 # ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*> 
 #1. Read in Data ----
 #data_raw <- readRDS("data/flame3.supercleaned.rds")
-data_raw <- readRDS("data/flame2.supercleaned.rds")
+#data_raw <- readRDS("data/flame2.supercleaned.rds")
+#data_raw <- readRDS("data/flame1.supercleaned.rds")
+data_raw <- read_csv("data/transect2_recleaned_for_clustering.csv")
 
 #2. Format data ----
 which(is.na(data_raw)) # determine where there are NAs
 dat_noNAs <- na.omit(data_raw) # remove NAs
 which(is.na(dat_noNAs))
 
-dat_cols <- dat_noNAs[ , c("temp", "spCond", "pH", "ODO", "turb",
-                           "fDOM", "CHL", "NO3")] # keep only the columns of the parameters 
+#dat_cols <- dat_noNAs[ , c("temp", "spCond", "pH", "ODO", "turb",
+                           "fDOM", "CHL", "NO3")] # keep only the columns of the parameters
+
 # NO pH:                        
-#dat_cols <- dat_noNAs[ , c("temp", "spCond", "ODO", "turb",
-                           #"fDOM", "CHL", "NO3")] # keep only the columns of the parameters ****TOOK pH OUT
+dat_cols <- dat_noNAs[ , c("temp", "spCond", "ODO", "turb",
+                           "fDOM", "CHL", "NO3")] # keep only the columns of the parameters ****TOOK pH OUT
 
-#write_csv(dat_cols, "data_output/No_pH/WholeRiverDataRaw_NoNas.csv") #save this as a csv to pull in later
+## FOR TRANSECT 1, NEED TO REMOVE THE 5 NEG VALUES IN NO3, otherwise scale and log wont work:
+nans<- which(is.nan(log(dat_cols$NO3)))
+dat_cols<- dat_cols[-nans, ] #should remove 5 values 
 
+#Log transform and scale:
 dat_transformed <- apply(dat_cols, 2, log) # transform the data
 dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
 
@@ -52,16 +66,38 @@ dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
 
 #3a. Elbow Method:
 set.seed(123)
+# one line method, does not expand beoynd 10 though...:
 fviz_nbclust(dat_rescaled, kmeans, method = "wss") 
 
+# second method for Elbow:
+wss1 <- function(k) {
+  kmeans(dat_rescaled, k, nstart = 10 )$tot.withinss
+}
+k.values <- 1:15
+
+elbow <- map_dbl(k.values, wss1)
+
+plot(k.values, elbow,
+     type="b", pch = 19, frame = FALSE,
+     main = "Elbow Method: T2 no pH",
+     xlab="Number of clusters K ",
+     ylab="Total within-clusters sum of squares")
+# transect 1: looks like 10 clusters is best
+# for transect 2: look like 9-10 clusters best 
+
+
 #3b. Silhousette method: 
-fviz_nbclust(dat_rescaled, kmeans, method = "silhouette") # says 6 clusters for Transect 2
+fviz_nbclust(dat_rescaled, kmeans, method = "silhouette") 
+
+# says 10 clusters for transect 1
+# says 6 clusters for Transect 2
 
 #3c. Gap Statistic Method: ***WARNING: this method takes a long time to run****
 set.seed(123)
-gap_stat <- clusGap(dat_rescaled, FUN = kmeans, nstart = 25, K.max = 15, B = 15) 
+gap_stat <- clusGap(dat_rescaled, FUN = kmeans, nstart = 25, K.max = 20, B = 20) 
 print(gap_stat, method = "firstmax")
 fviz_gap_stat(gap_stat) # look at the results with fviz_gap_stat
+
 # says optimal # of clusters for transect 2 is 9
 
 #3d. NB Clust: ***WARNING: this method takes a long time to run****
@@ -71,10 +107,46 @@ results.nbclust <- NbClust(dat_rescaled, distance = "euclidean",
                       min.nc = 2, max.nc = 15, 
                       method = "complete", index ="all")
 factoextra::fviz_nbclust(results.nbclust) + theme_minimal() + ggtitle("NbClust's optimal number of clusters")
+#for transect 2 data, the nbclust package suggested 10 as best cluster number
+
+#3e. CALINSKY CRITERION----
+# method evaluating optimal number of clusters based on within- and between-cluster distances
+set.seed(13)
+
+cc <- cascadeKM(dat_rescaled, 1, 15, iter = 1000)
+plot(cc, sortg = TRUE, grpmts.plot = TRUE)
+calinski.best2 <- as.numeric(which.max(cc$results[2,]))
+cat("Calinski criterion optimal number of clusters:", calinski.best2, "\n")
+# transect 1: says 10 is optimal 
+# transect 2: 10 was chosen as best cluster number by the Calinski criterion 
+
+#3f. BIC method----
+d_clust <- Mclust(as.matrix(dat_rescaled), G=1:15, 
+modelNames = mclust.options("emModelNames"))
+d_clust$BIC
+plot(d_clust)
+
+#Top 3 models based on the BIC criterion: (for transect 2)
+  #VVV,15   VVV,14   VVV,13 
+#140365.0 134935.8 127648.8 
+
+
+#Top 3 models based on the BIC criterion: (transect 1)
+  #VEV,15   VEV,14   VEV,13 
+#89857.79 81567.84 78723.55 
+###### Look at parameter correlations in corrplot ######
+
+#3f.Use pmk function
+pamk.best <- pamk(dat_rescaled)
+cat("number of clusters estimated by optimum average silhouette width:", pamk.best$nc, "\n")
+plot(pam(dat_rescaled, pamk.best$nc))
+# transect 2: optimal clusters is 5
+
+corrplot(cor(dat_rescaled), type = "upper", method = "ellipse", tl.cex = 0.9) 
 
 # ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*>  ------------- ><)))))*> 
 # 4. Whole River Cluster Analysis ----
-kmeans_wholeriver <- kmeans(dat_rescaled, 2, nstart = 25) # decided on 2 cluster groups
+kmeans_wholeriver <- kmeans(dat_rescaled, 5, nstart = 25) # decided on 2 cluster groups
 #**MAKE SURE THAT CLUSTER 1 IS PINK (SMALLER CLUSTER, ON THE LEFT) AND 2 (BIGGER CLUSTER, ON THE RIGHT) SHOULD BE GREEN... OTHERWISE YOU WILL HAVE PROBLEMS WITH THE SUBCLUSTER GROUPS***
 
 #4a. Plot Kmeans analysis
