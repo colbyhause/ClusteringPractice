@@ -8,7 +8,8 @@ library(gridExtra)  # plot arrangement
 
 # Load data:----
 # dataframe:
-dat <- readRDS("data/flame3.supercleaned.rds")
+#dat <- readRDS("data/flame3.supercleaned.rds")
+dat<- read_csv("data/transect2_recleaned_for_clustering.csv")
 
 # remove missing values:
 which(is.na(dat))
@@ -36,16 +37,20 @@ pca_result$center
 pca_result$scale
 # PCA loadings:----
 # file:///Users/colbyhause/Downloads/AtchleyOct19%20(1).pdf this pdf give definition of loadings 
-pca_result$rotation <- -pca_result$rotation # switch the sign bc by default eigenvectors point in the neg direction
+#pca_result$rotation <- -pca_result$rotation # switch the sign bc by default eigenvectors point in the
+# neg direction---> I DONT ACTUALLY THINK WE WANT TO DO THIS...??!
 pca_result$rotation
 
 #principal components scores from our results:----
-pca_result$x <- - pca_result$x # also make them point in the positive direction
+#pca_result$x <- - pca_result$x # also make them point in the positive direction
 head(pca_result$x)
+length(pca_result$x)
+
 # Plot PCA:----
 # this by default only plots principle components 1 and 2
-pdf(file = "figure_output/PCA_biplot_WholeRiver.pdf")
-biplot(pca_result, scale = 0, main ="Biplot Whole River T3" )
+#pdf(file = "figure_output/PCA_biplot_WholeRiver.pdf")
+pdf(file = "figure_output/Flame2_ClusterPlots/BiPlot_WholeRiver_Transect2")
+biplot(pca_result, scale = 0, main ="Biplot Whole River T2" )
 dev.off()
 # can make it plot other PCs with choices argument:
 #biplot(pca_result, scale = 0, choices = 3:4) shows just 1 blob bc no/very little variace 
@@ -124,10 +129,13 @@ pca_clust2_result$rotation
 VE_clust1 <- pca_clust1_result$sdev^2
 VE_clust2 <- pca_clust2_result$sdev^2
 
+VE_f2_wholeRiver <- pca_result$sdev^2
 #compute the proportion of variance explained by each principal component:
 PVE_clust1 <- VE_clust1 / sum(VE_clust1)
 round(PVE_clust1, 2) 
 #  0.69 0.19 0.07 0.02 0.01 0.01 0.00 0.00
+
+PVE_f2_wholeRiver <- VE_f2_wholeRiver/sum(VE_f2_wholeRiver)
 
 PVE_clust2 <- VE_clust2 / sum(VE_clust2)
 round(PVE_clust2, 2) 
@@ -153,7 +161,11 @@ clust2_loadings <- as.data.frame(clust2_loadings)
 biplot(pca_clust2_result, scale = 0, main = "Lower River/Delta sub-cluster") # plot
 write_csv(clust2_loadings, "data_output/clust2_loadings.csv")
 
-
+# Transect 2 whole River PCA- derived loadings:
+f2_pca_result <- pca_result
+f2_loadings <- f2_pca_result$rotation
+f2_loadings <- as.data.frame(f2_loadings)
+write_csv(f2_loadings, "data_output/f2_PCALoadings.csv")
 # Determining PC scores ----
 
 #1.Calculate eigenvalues & eigenvectors
