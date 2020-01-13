@@ -140,5 +140,107 @@ fviz_nbclust(dat_rescaled, FUN = hcut, method = "silhouette")
 gap_stat <- clusGap(dat_rescaled, FUN = hcut, nstart = 25, K.max = 20, B = 50)
 fviz_gap_stat(gap_stat) # says optimal is 20 clusters ???
 
+# Sun Jan 12 17:15:32 2020 ------------------------------
+# Hierarchical Agglomerative Clustering on the Mean and Coeff of Variation dataframes-------
+
+library(tidyverse)
+#install.packages("dendextend")
+library(dendextend)
+
+# Means dataset:----
+# Read in data:----
+means_dat <- read_csv("data/Mean_fromPredicted_AllParams_across_actualRKMS.csv")
+
+#Log transform and scale:----
+dat_transformed <- apply(means_dat[ , 1:8], 2, log) # transform the data
+dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
+
+# Calculate euclidean distance between points----
+dist_m <- dist(x = dat_rescaled, method = "euclidean")
+
+# Hclust----
+m_hclust_dat <- hclust(dist_m, method = "complete")
+m_hclust_dat_single <- hclust(dist_m, method = "single")
+m_hclust_dat_avg <- hclust(dist_m, method = "average")
+
+#plot:----
+pdf(file = "figure_output/Hierarchical_plots/means_dendro.pdf")
+plot(m_hclust_dat, labels = F, hang = -10, main = "Means Data ") # the complete method looks more biologically relevant 
+dev.off()
+plot(m_hclust_dat_single)
+plot(m_hclust_dat_avg)
+
+# cutree:----
+m_ct<- cutree(m_hclust_dat, h = 6) # just arbitrarily chose h = 6
+
+# put back into df:----
+m_hclust_ct <- means_dat %>% 
+  mutate(cluster = m_ct)
+
+# Dendextend:----
+m_dend_clust <- as.dendrogram(m_hclust_dat)
+m_color_dend <- color_branches(dend = m_dend_clust, h = 6)
+plot(m_color_dend)
+
+# CV dataset----
+# Read in data:----
+cv_dat <- read_csv("data/CV_fromPredicted_AllParams_across_actualRKMS.csv")
+
+#Log transform and scale:----
+dat_transformed <- apply(cv_dat[ , 1:8], 2, log) # transform the data
+dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
+# Calculate euclidean distance between points----
+dist_cv <- dist(x = dat_rescaled, method = "euclidean")
+
+# Hclust----
+cv_hclust_dat <- hclust(dist_cv, method = "complete")
+cv_hclust_dat_single <- hclust(dist_cv, method = "single")
+cv_hclust_dat_avg <- hclust(dist_cv, method = "average")
+
+#plot:----
+pdf("figure_output/Hierarchical_plots/cv_dendro.pdf")
+plot(cv_hclust_dat, labels = F, hang = -10, main = "CV Data" ) # this might be the best option?  
+dev.off()
+plot(cv_hclust_dat_single)
+plot(cv_hclust_dat_avg)
+
+# cutree:-----
+cv_ct<- cutree(cv_hclust_dat, h = 12) # chose 12 to break them into 2 clusters
+unique(cv_ct)
+length(which(cv_ct == 2)) # only 12 observations in cluster 2, maybe remove these points?
+
+
+cv_ct<- cutree(cv_hclust_dat_avg, h = 10) #chose h = 10 to make it break up into 2 clusters
+unique(cv_ct)
+length(which(cv_ct == 2)) #  only 2 observations in cluster 2 for the avg method
+
+# Removing the 6 outlier points just to test
+outliers <- which(cv_ct == 2)
+cv_dat_edited <- cv_dat[-outliers, ]
+
+dist_cv_edited <- dist(cv_dat_edited)
+cv_hclust_dat_edited <- hclust(dist_cv_edited, method = "complete")
+plot(cv_hclust_dat_edited, labels = F, hang = -10 )
+cv_ct_edited <- cutree(cv_hclust_dat_edited, h = 200)
+unique(cv_ct_edited)
+length(which(cv_ct_edited == 2)) #  only 6 observations in cluster 2
+# try removing those 6:
+outliers <- which(cv_ct_edited == 2)
+cv_dat_edited2 <- cv_dat_edited[-outliers, ]
+
+dist_cv_edited2 <- dist(cv_dat_edited2)
+cv_hclust_dat_edited2 <- hclust(dist_cv_edited2, method = "complete")
+plot(cv_hclust_dat_edited2, labels = F, hang = -10 ) # looks better, but not sure of this is all ok do to....
+
+# put back into df:------
+cv_hclust_ct <- cv_dat %>% 
+  mutate(cluster = cv_ct)
+unique(cv_hclust_ct$cluster)
+
+# Dendextend:-----
+cv_dend_clust <- as.dendrogram(cv_hclust_dat)
+cv_color_dend <- color_branches(dend = cv_dend_clust, h = 200)
+plot(cv_color_dend)
+
 
 
