@@ -4,6 +4,8 @@
 # Resources include: 
 # Numerical Ecology with R book (2nd edition) (NER)
 
+# In summary: The UPGMA method proved to be the best hierarchical clustering method for botht the means and CV data. Using the silhouette method, 8 clusers were chosen for the means data and 6 for the CV. I has to get rid of outlier data that were creating small clusters (<10 observations) from the original CV dataset. The edited file (which should be used from here on out) is located here: "data_output/CV_fromPredicted_AllParams_across_actualRKMS_OUTLIERS_REMOVED.csv". Thinking about this now... maybe i should remove those same detections from the means data to stay consistent....ask Andrew
+
 #install.packages("labdsv")
 #install.packages("gclus")
 #install.packages("ade4")
@@ -189,7 +191,13 @@ min(sil_i)
 max(sil_i)
 
 # cut clusters :
-means_ct<- cutree(means_upgma, k = 8) # chose 12 to break them into 2 clusters
+means_ct_8<- cutree(means_upgma, k = 8) 
+
+# put back into df:
+means_dat_upgma_8Clusters <- means_dat %>% 
+  mutate(clusters = means_ct_8)
+#write to file:
+write_csv(means_dat_upgma_8Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_8clusts_upgma.csv")
 
 # Dendextend:-----
 means_dend_clust <- as.dendrogram(means_upgma)
