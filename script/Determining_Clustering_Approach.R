@@ -208,8 +208,6 @@ dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
 # create distance matrix:----
 dist_cv <- dist(x = dat_rescaled, method = "euclidean")
 
-# After going through all this code, its cleaer the UPGMA is the best option. I have to remove the outliers that make the really small clusters (<10 dets) and then will compare with the rest of the other methods 
-
 # Running data through many different Hierarchical clustering methods:
 # Complete linkage:----
 cv_complete <-  hclust(dist_cv, method = "complete") # still contains small group
@@ -273,96 +271,6 @@ gower.single<- sum((dist_cv - cv_single_coph)^2)
 gower.single/1000000 # 345.3784 3rd
 gower.ward <- sum((dist_cv - cv_ward_coph)^2)
 gower.ward/1000000 #4584179316 worst
-
-# After running these 2 tests it looks like upgma would be the best method but it produces a weird small clusters, need to get rid of that
-
-#------
-cv_dat <- read_csv("data/CV_fromPredicted_AllParams_across_actualRKMS.csv")
-#Log transform and scale:----
-dat_transformed <- apply(cv_dat[ , 1:8], 2, log) # transform the data
-dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
-#dat_stand <- decostand(dat_transformed[ , 1:8], "standardize") # this is the same out put as the line above (NER p. 56)
-#dat_norm <- decostand(dat_transformed[ , 1:8], "normalize") # this is what the book does, except without log transforming it before hand (NER p. 56)
-
-# create distance matrix:----
-dist_cv <- dist(x = dat_rescaled, method = "euclidean")
-dist_unscaled<- dist(x = cv_dat, method = "euclidean")
-
-
-cv_scaled_upgma <- hclust(dist_cv, method = "average") # also has small group
-plot(cv_scaled_upgma, hang = -5)
-
-cv_unscaled_upgma <- hclust(dist_unscaled, method = "average") # also has small group
-plot(cv_unscaled_upgma, hang = -5)
-
-# ok: so what i was seeing before in the difference in dendrograms after removing the two records: i was actually not putting the scaled and transformed file into the dist function, so it was spitting out a completely different plot. so, i need to just keep trying this method but continue to scale and transform data 
-
-#------
-# cutree:-----
-cv_ct_outliers <- cutree(cv_upgma, k = 2) #  break them into 2 clusters
-unique(cv_ct_outliers)
-length(which(cv_ct_outliers == 2)) # only 2 observations in cluster 2, remove these points
-length(cv_ct_outliers)
-# put the clusters into original df:
-cv_hclust_clusters <- cv_dat %>% 
-  mutate(cluster = cv_ct_outliers)
-unique(cv_hclust_clusters$cluster)
-length(which(cv_hclust_clusters$cluster == 2)) # 2 rows, correct
-
-# Removing the 2 outlier points
-outliers <- which(cv_hclust_clusters$cluster == 2)
-cv_dat_edited <- cv_hclust_clusters[-outliers, ]
-unique(cv_dat_edited$cluster) # only 1 unique cluster
-
-#outliers <- which(cv_hclust_clusters$cluster == 2)
-#cv_dat_edited <- cv_dat[-outliers, ]
-
-# transform and scale new data:
-#Log transform and scale:----
-dat_transformed_edited <- apply(cv_dat_edited[ , 1:8], 2, log) # transform the data
-dat_rescaled_edited <- apply(dat_transformed_edited, 2, scale) # rescale the data
-
-# run dist function on edited data:
-dist_cv_edited <- dist(x = dat_rescaled_edited, method = "euclidean")
-# run the upgma method again:
-#upgma edited-----
-pdf("figure_output/DeterminingOptimalClusters/upgma_dendro_firstedits.pdf")
-cv_upgma_edited_test <- hclust(dist_cv_edited, method = "average") # also has small group
-plot(cv_upgma_edited_test, hang = -5) # still showing another weird cluster, so this process again:
-cv_upgma_edited_test
-dev.off()
-# looks the exact same. try again:
-
-# Remove the new small cluster that still exists:----
-# cutree:
-cv_ct_outliers2 <- cutree(cv_upgma_edited_test, k = 2) #  break them into 2 clusters
-unique(cv_ct_outliers2)
-length(which(cv_ct_outliers2 == 2)) # now 8 observations in cluster 2, remove these points
-# put the clusters into original df:
-cv_hclust_clusters2 <- cv_dat_edited %>% 
-  mutate(cluster = cv_ct_outliers2)
-unique(cv_hclust_clusters2$cluster)
-length(which(cv_hclust_clusters2$cluster == 2)) # 8 rows, correct
-
-# Removing the 2 outlier points
-outliers2 <- which(cv_hclust_clusters2$cluster == 2)
-cv_dat_edited2 <- cv_dat_edited[-outliers2, ]
-nrow(cv_dat_edited2) # looks good
-
-# transform and scale new data:
-#Log transform and scale:----
-dat_transformed_edited2 <- apply(cv_dat_edited2[ , 1:8], 2, log) # transform the data
-dat_rescaled_edited2 <- apply(dat_transformed_edited2, 2, scale) # rescale the data
-
-# run dist function on edited2 data:
-dist_cv_edited2 <- dist(x = dat_rescaled_edited2, method = "euclidean")
-
-# run the upgma method again:
-#upgma edited-----
-cv_upgma_edited2 <- hclust(dist_cv_edited2, method = "average") # also has small group
-plot(cv_upgma_edited2, hang = -5) # still showing another weird cluster, so this process again:
-# yay this finally fixed it!
-# Now use cv_upgma_edited2 as your upgma cluster 
 
 # Determining clusters:----
 # Fusion Values----
@@ -472,3 +380,254 @@ cv_ct<- cutree(cv_upgma, k = 2) # chose 12 to break them into 2 clusters
 cv_dend_clust <- as.dendrogram(cv_upgma)
 cv_color_dend <- color_branches(dend = cv_dend_clust, k = 2)
 plot(cv_color_dend) # this is no good, need to remove the small cluster. 
+
+# After going through all this code, its clear the UPGMA is the best option. I have to remove the outliers that make the really small clusters (<10 dets) and then will compare with the rest of the other methods:
+# EDITING THE UPGMA CLUSTER METHOD CLUSTERS:----
+# cutree:
+#start here----
+cv_dat <- read_csv("data/CV_fromPredicted_AllParams_across_actualRKMS.csv")
+#Log transform and scale:----
+dat_transformed <- apply(cv_dat[ , 1:8], 2, log) # transform the data
+dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
+
+# create distance matrix:----
+dist_cv <- dist(x = dat_rescaled, method = "euclidean")
+
+# Running data through many different Hierarchical clustering methods:
+# Complete linkage:----
+cv_complete <-  hclust(dist_cv, method = "complete") # still contains small group
+plot(cv_complete, hang = -5)
+
+# upgma (average) clustering----
+cv_upgma <- hclust(dist_cv, method = "average") # has small group
+plot(cv_upgma, hang = -5)
+
+# remove first group of outliers:----
+cv_ct_outliers <- cutree(cv_upgma, k = 2) #  break them into 2 clusters
+unique(cv_ct_outliers)
+length(which(cv_ct_outliers == 2)) # only 2 observations in cluster 2, remove these points
+length(cv_ct_outliers)
+# put the clusters into original df:
+cv_hclust_clusters <- cv_dat %>% 
+  mutate(cluster = cv_ct_outliers)
+unique(cv_hclust_clusters$cluster)
+length(which(cv_hclust_clusters$cluster == 2)) # 2 rows, correct
+
+# Removing the 2 outlier points
+outliers <- which(cv_hclust_clusters$cluster == 2)
+cv_dat_edited <- cv_hclust_clusters[-outliers, ]
+unique(cv_dat_edited$cluster) # only 1 unique cluster
+
+# transform and scale new data:
+#Log transform and scale:
+dat_transformed_edited <- apply(cv_dat_edited[ , 1:8], 2, log) # transform the data
+dat_rescaled_edited <- apply(dat_transformed_edited, 2, scale) # rescale the data
+
+# run dist function on edited data:
+dist_cv_edited <- dist(x = dat_rescaled_edited, method = "euclidean")
+# run the upgma method again:
+#upgma edited-----
+cv_upgma_edited_test <- hclust(dist_cv_edited, method = "average") # also has small group
+plot(cv_upgma_edited_test, hang = -5) # still showing another weird cluster 
+#Do this process again:
+
+# Remove the new small cluster that still exists:----
+# cutree:
+cv_ct_outliers2 <- cutree(cv_upgma_edited_test, k = 2) #  break them into 2 clusters
+unique(cv_ct_outliers2)
+length(which(cv_ct_outliers2 == 2)) # now 8 observations in cluster 2, remove these points
+# put the clusters into original df:
+cv_hclust_clusters2 <- cv_dat_edited %>% 
+  mutate(cluster = cv_ct_outliers2)
+unique(cv_hclust_clusters2$cluster)
+length(which(cv_hclust_clusters2$cluster == 2)) # 8 rows, correct
+
+# Removing the 8 outlier points
+outliers2 <- which(cv_hclust_clusters2$cluster == 2)
+cv_dat_edited2 <- cv_dat_edited[-outliers2, ]
+nrow(cv_dat_edited2) # looks good
+
+# transform and scale new data:
+#Log transform and scale:
+dat_transformed_edited2 <- apply(cv_dat_edited2[ , 1:8], 2, log) # transform the data
+dat_rescaled_edited2 <- apply(dat_transformed_edited2, 2, scale) # rescale the data
+
+# run dist function on edited2 data:
+dist_cv_edited2 <- dist(x = dat_rescaled_edited2, method = "euclidean")
+
+# run the upgma method again:
+#upgma edited-----
+cv_upgma_edited2 <- hclust(dist_cv_edited2, method = "average") # also has small group
+plot(cv_upgma_edited2, hang = -5) # still showing another weird cluster, so this process again:
+# yay this finally fixed it!
+# Now use cv_upgma_edited2 as your upgma cluster 
+
+# write this new edited dataset to a file:
+write_csv(cv_dat_edited2, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_OUTLIERS_REMOVED.csv")
+# Re test all the methods using the new edited dataset:
+
+CVdat_edited <- read_csv("data_output/CV_fromPredicted_AllParams_across_actualRKMS_OUTLIERS_REMOVED.csv")
+#Log transform and scale:
+dat_transformed <- apply(CVdat_edited[ , 1:8], 2, log) # transform the data
+dat_rescaled <- apply(dat_transformed, 2, scale) # rescale the data
+
+# run dist function on edited data:
+dist_cv <- dist(x = dat_rescaled, method = "euclidean")
+
+# Run edited data through many different Hierarchical clustering methods:
+# Complete linkage:----
+cv_complete <-  hclust(dist_cv, method = "complete") 
+plot(cv_complete, hang = -5)
+
+# upgma (average) clustering----
+pdf("figure_output/DeterminingOptimalClusters/upgma_dendro_edited_data.pdf")
+cv_upgma <- hclust(dist_cv, method = "average") # has small group
+plot(cv_upgma, hang = -5)
+cv_upgma
+dev.off()
+
+# Single Clustering ----
+cv_single <- hclust(dist_cv, method = "single") 
+plot(cv_single, hang = -5)
+
+# ward clustering----
+cv_ward <- hclust(dist_cv, method = "ward.D")
+plot(cv_ward, hang = -5)
+
+
+# [Edited] Comparing Clustering Results ----
+# Cophenetic Correlation:----
+# The cophenetic distance btwn 2 onjects in a dendrogram is the distance where 2 objects become memebers of the same group
+
+#complete----
+cv_complete_coph <- cophenetic(cv_complete)
+cor(dist_cv, cv_complete_coph) # 0.9289691 2nd
+#upgma----
+cv_upgma_coph <- cophenetic(cv_upgma)
+cor(dist_cv, cv_upgma_coph) # 0.9445085 # best
+# single----
+cv_single_coph <- cophenetic(cv_single)
+cor(dist_cv, cv_single_coph) # 0.7620658 Last
+#ward ----
+cv_ward_coph <- cophenetic(cv_ward)
+cor(dist_cv, cv_ward_coph) # 0.8217637 #3rd
+#upgma still best method
+
+#[edited] Gower Distance: Another way to compare cluster methods----
+#Computed as the sum of squared differences between the original and cophenetic distances. Cluster method that produces the smallest gower number is the best method
+gower.complete <- sum((dist_cv - cv_complete_coph)^2)
+gower.complete/1000000 # 307.4161  2nd           
+gower.upgma <- sum((dist_cv - cv_upgma_coph)^2)                    
+gower.upgma/1000000  # 22.35011 best              
+gower.single<- sum((dist_cv - cv_single_coph)^2)
+gower.single/1000000 #  345.452 3rd
+gower.ward <- sum((dist_cv - cv_ward_coph)^2)
+gower.ward/1000000 #4611027209 worst
+
+#upgma still best cluster method
+
+# [edited] Determining clusters:----
+# Fusion Values----
+# did not run this code again but it wasnt helpful the first time around
+
+# Silhouette widths:----
+# The greater the value is, the better the object is clustered
+# Create empty vector in which the asw (average sil widths) will be written
+asw <- numeric(nrow(CVdat_edited))
+#Retrieve and write asw values into the vector
+# complete linkage----
+#  just to see what this one says
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(cv_complete, k = k), dist_cv)
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, Complete", xlab = "k (number of groups)", ylab = "Average silhouette width")
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n") # sayd 6 clusters optimal
+
+#UPGMA method----
+# Create empty vector in which the asw (average sil widths) will be written
+asw <- numeric(nrow(CVdat_edited))
+#Retrieve and write asw values into the vector
+# complete linkage
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(cv_upgma, k = k), dist_cv)
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, UPGMA", xlab = "k (number of groups)", ylab = "Average silhouette width", cex = .5)
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n")
+
+#Both the complete and the upgma returns 6 as the optimal number of clusters onthe edited data. Going to go with the UPGMA method because the both the cophenetic correlation and the gower method strongly chose this method
+
+# Another way to look at grouping strength:
+# [Edited]Mantel Coeff:----
+grpdist <- function(x)
+{
+  require(cluster)
+  gr <- as.data.frame(as.factor(x))
+  distgr <- daisy(gr, "gower")
+  distgr
+}
+
+kt <- data.frame(k = 1:30, r = 0) # 
+
+for (i in 2:30) { # only going to look at clusters up to 30
+  gr <- cutree(cv_upgma, i)
+  distgr <- grpdist(gr)
+  mt <- cor(dist_cv, distgr, method = "pearson")
+  kt[i, 2] <- mt
+}
+kt
+k.best <- which.max(kt$r)
+k.best # says 7 clusters are best
+#plot:
+plot(kt$k, kt$r, type = "h", main = "Mantel-optimal clusters-upgma", xlab = "k", ylab = "Pearson's correlation")
+axis(1, k.best, paste("optimum", k.best, sep = "/n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(kt$r), pch = 16, col = "red", cex = 1.5)
+# according to the plot, it looks like 5-9 clusters look pretty even, so going to stick with 6
+
+# Silhouette plot of the final partition:
+# i cant get this code to actually show data on the plot but the numbers are still helpful
+
+k_i <- 6
+cutg_i <- cutree(cv_upgma, k = k_i)
+sil_i <- silhouette(cutg_i, dist_cv)
+silo_i <- sortSilhouette(sil_i)
+
+plot(silo_i)
+plot(silo_i, main = "Silhouette plot", cex.names = .4, col = cutg_i+1, nmax.lab = 100)
+min(sil_i)
+max(sil_i)
+# for 6 clusters, the avg sil width is .63
+# cut clusters :
+cv_ct_upgma_6<- cutree(cv_upgma, k = 6) 
+
+# put back into df:
+cv_dat_edited_upgma_6Clusters <- CVdat_edited %>% 
+  mutate(clusters = cv_ct_upgma_6)
+
+#write to file:
+write_csv(cv_dat_edited_upgma_6Clusters, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_NoOutliers_6clusts_upgma.csv")
+
+# Dendextend:-----
+cv_dend_clust <- as.dendrogram(cv_upgma)
+pdf("figure_output/DeterminingOptimalClusters/upgma_dendro_edited_data_6clusts.pdf")
+cv_color_dend <- color_branches(dend = cv_dend_clust, k = 6)
+plot(cv_color_dend) # looks good
+dev.off()
+
+
+
+
+
