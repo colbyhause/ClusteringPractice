@@ -426,7 +426,6 @@ outliers <- which(cv_hclust_clusters$cluster == 2)
 cv_dat_edited <- cv_hclust_clusters[-outliers, ]
 unique(cv_dat_edited$cluster) # only 1 unique cluster
 
-# transform and scale new data:
 #Log transform and scale:
 dat_transformed_edited <- apply(cv_dat_edited[ , 1:8], 2, log) # transform the data
 dat_rescaled_edited <- apply(dat_transformed_edited, 2, scale) # rescale the data
@@ -454,6 +453,9 @@ length(which(cv_hclust_clusters2$cluster == 2)) # 8 rows, correct
 outliers2 <- which(cv_hclust_clusters2$cluster == 2)
 cv_dat_edited2 <- cv_dat_edited[-outliers2, ]
 nrow(cv_dat_edited2) # looks good
+
+#write to a file:
+write_csv(cv_dat_edited2, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_edited2.csv")
 
 # transform and scale new data:
 #Log transform and scale:
@@ -623,8 +625,8 @@ cv_ct_upgma_6<- cutree(cv_upgma, k = 6)
 
 # put back into df:
 cv_dat_edited_upgma_6Clusters <- CVdat_edited %>% 
-  mutate(clusters = cv_ct_upgma_6)
-
+  mutate(cluster = cv_ct_upgma_6)
+unique(cv_dat_edited_upgma_6Clusters$cluster)
 #write to file:
 write_csv(cv_dat_edited_upgma_6Clusters, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_NoOutliers_6clusts_upgma.csv")
 
@@ -635,7 +637,415 @@ cv_color_dend <- color_branches(dend = cv_dend_clust, k = 6)
 plot(cv_color_dend) # looks good
 dev.off()
 
+# [EDITED] AFTER SPATIAL PLOTS----
+# After plotting the CV spatially, there is still one cluster with only 6 records in it. Trying removing those and seeing what that does:
+CVdat_upgma_6clusters <- read_csv("data_output/CV_fromPredicted_AllParams_across_actualRKMS_NoOutliers_6clusts_upgma.csv")
+# need to remove the records for cluster 6:
+
+CVdat_upgma_cluster6removed <-CVdat_upgma_6clusters %>% 
+  filter(cluster != 6)
+
+#Log transform and scale:----
+dat_transformed_edited3 <- apply(CVdat_upgma_cluster6removed[ , 1:8], 2, log) # transform the data
+dat_rescaled_edited3 <- apply(dat_transformed_edited3, 2, scale) # rescale the data
+
+# make dist matrix:
+dist_cv_edited3 <- dist(dat_rescaled_edited3, method = "euclidean")
+
+# Double check upgma is still best method:
+cv_complete <-  hclust(dist_cv_edited3, method = "complete") # still contains small group
+plot(cv_complete, hang = -5)
+
+# upgma (average) clustering----
+cv_upgma <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma, hang = -5)
 
 
+# Single Clustering ----
+cv_single <- hclust(dist_cv_edited3, method = "single") 
+plot(cv_single, hang = -5)
 
+# ward clustering----
+cv_ward <- hclust(dist_cv_edited3, method = "ward.D") # looks pretty good 
+plot(cv_ward, hang = -5)
+
+# Comparing Clustering Results ----
+# Cophenetic Correlation:
+#complete----
+cv_complete_coph <- cophenetic(cv_complete)
+cor(dist_cv_edited3, cv_complete_coph) #0.9000693 2nd
+#upgma----
+cv_upgma_coph <- cophenetic(cv_upgma)
+cor(dist_cv_edited3, cv_upgma_coph) #0.9491647  # best
+# single----
+cv_single_coph <- cophenetic(cv_single)
+cor(dist_cv_edited3, cv_single_coph) #0.7652201  Last
+#ward ----
+cv_ward_coph <- cophenetic(cv_ward)
+cor(dist_cv_edited3, cv_ward_coph) # 0.8274719 #3rd
+
+# now look at gower distance:
+#Gower Distance: Another way to compare cluster methods----
+#Computed as the sum of squared differences between the original and cophenetic distances. Cluster method that produces the smallest gower number is the best method
+gower.complete <- sum((dist_cv_edited3 - cv_complete_coph)^2)
+gower.complete/1000000 # 712.2645  2nd           
+gower.upgma <- sum((dist_cv_edited3 - cv_upgma_coph)^2)     
+gower.upgma/1000000  # 20.34918 best              
+gower.single<- sum((dist_cv_edited3 - cv_single_coph)^2)
+gower.single/1000000 # 344.1449 3rd
+gower.ward <- sum((dist_cv_edited3 - cv_ward_coph)^2)
+gower.ward/1000000 #4615749618 worst
+
+# Go with upgma method again:
+cv_upgma_edited3 <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma_edited3, hang = -5)
+
+# check to see if changes number of clusters:
+# Create empty vector in which the asw (average sil widths) will be written
+asw <- numeric(nrow(CVdat_upgma_cluster6removed))
+#Retrieve and write asw values into the vector
+# complete linkage
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(cv_upgma_edited3, k = k),dist_cv_edited3 )
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, UPGMA", xlab = "k (number of groups)", ylab = "Average silhouette width", cex = .5)
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n")
+# now says optimum number is 5 clusters. 
+
+# Silhouette plot of the final partition:
+# i cant get this code to actually show data on the plot but the numbers are still helpful
+
+k_i <- 5
+cutg_i <- cutree(cv_upgma_edited3, k = k_i)
+sil_i <- silhouette(cutg_i, dist_cv_edited3)
+silo_i <- sortSilhouette(sil_i)
+
+plot(silo_i)
+plot(silo_i, main = "Silhouette plot", cex.names = .4, col = cutg_i+1, nmax.lab = 100)
+min(sil_i)
+max(sil_i)
+# for 5 clusters, the avg sil width is .63
+
+# [Edited3]Mantel Coeff:----
+grpdist <- function(x)
+{
+  require(cluster)
+  gr <- as.data.frame(as.factor(x))
+  distgr <- daisy(gr, "gower")
+  distgr
+}
+
+kt <- data.frame(k = 1:30, r = 0) # 
+
+for (i in 2:30) { # only going to look at clusters up to 30
+  gr <- cutree(cv_upgma_edited3, i)
+  distgr <- grpdist(gr)
+  mt <- cor(dist_cv_edited3, distgr, method = "pearson")
+  kt[i, 2] <- mt
+}
+kt
+k.best <- which.max(kt$r)
+k.best # says  clusters are best
+
+#plot:
+plot(kt$k, kt$r, type = "h", main = "Mantel-optimal clusters-upgma", xlab = "k", ylab = "Pearson's correlation")
+axis(1, k.best, paste("optimum", k.best, sep = "/n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(kt$r), pch = 16, col = "red", cex = 1.5)
+
+# cut clusters :
+cv_ct_upgma_5<- cutree(cv_upgma_edited3, k = 5) 
+
+# put back into df:
+cv_dat_edited3_upgma_5Clusters <- CVdat_upgma_cluster6removed %>% 
+  mutate(cluster = cv_ct_upgma_5)
+unique(cv_dat_edited3_upgma_5Clusters$cluster)
+#write to file:
+write_csv(cv_dat_edited3_upgma_5Clusters, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_edited3_5clusts_upgma.csv")
+# see how many records in each cluster:
+length(which(cv_dat_edited3_upgma_5Clusters$cluster == 1))
+# now spatialize this in script: Make_Hierarch_Clusters_Spatial.R
+
+# No Scaling----
+# Running upgma method w/out scaling the data
+CVdat_upgma_6clusters <- read_csv("data_output/CV_fromPredicted_AllParams_across_actualRKMS_NoOutliers_6clusts_upgma.csv")
+# need to remove the records for cluster 6:
+
+CVdat_upgma_cluster6removed <-CVdat_upgma_6clusters %>% 
+  filter(cluster != 6)
+
+#Log transform and scale:----
+dat_transformed_edited3 <- apply(CVdat_upgma_cluster6removed[ , 1:8], 2, log) # transform the data
+dat_rescaled_edited3 <- apply(dat_transformed_edited3, 2, scale) # rescale the data
+
+# make dist matrix:
+dist_cv_edited3 <- dist(dat_rescaled_edited3, method = "euclidean")
+
+# Double check upgma is still best method:
+cv_complete <-  hclust(dist_cv_edited3, method = "complete") # still contains small group
+plot(cv_complete, hang = -5)
+
+# upgma (average) clustering----
+cv_upgma <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma, hang = -5)
+
+
+# Single Clustering ----
+cv_single <- hclust(dist_cv_edited3, method = "single") 
+plot(cv_single, hang = -5)
+
+# ward clustering----
+cv_ward <- hclust(dist_cv_edited3, method = "ward.D") # looks pretty good 
+plot(cv_ward, hang = -5)
+
+# Comparing Clustering Results ----
+# Cophenetic Correlation:
+#complete----
+cv_complete_coph <- cophenetic(cv_complete)
+cor(dist_cv_edited3, cv_complete_coph) #0.9000693 2nd
+#upgma----
+cv_upgma_coph <- cophenetic(cv_upgma)
+cor(dist_cv_edited3, cv_upgma_coph) #0.9491647  # best
+# single----
+cv_single_coph <- cophenetic(cv_single)
+cor(dist_cv_edited3, cv_single_coph) #0.7652201  Last
+#ward ----
+cv_ward_coph <- cophenetic(cv_ward)
+cor(dist_cv_edited3, cv_ward_coph) # 0.8274719 #3rd
+
+# now look at gower distance:
+#Gower Distance: Another way to compare cluster methods----
+#Computed as the sum of squared differences between the original and cophenetic distances. Cluster method that produces the smallest gower number is the best method
+gower.complete <- sum((dist_cv_edited3 - cv_complete_coph)^2)
+gower.complete/1000000 # 712.2645  2nd           
+gower.upgma <- sum((dist_cv_edited3 - cv_upgma_coph)^2)     
+gower.upgma/1000000  # 20.34918 best              
+gower.single<- sum((dist_cv_edited3 - cv_single_coph)^2)
+gower.single/1000000 # 344.1449 3rd
+gower.ward <- sum((dist_cv_edited3 - cv_ward_coph)^2)
+gower.ward/1000000 #4615749618 worst
+
+# Go with upgma method again:
+cv_upgma_edited3 <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma_edited3, hang = -5)
+
+# check to see if changes number of clusters:
+# Create empty vector in which the asw (average sil widths) will be written
+asw <- numeric(nrow(CVdat_upgma_cluster6removed))
+#Retrieve and write asw values into the vector
+# complete linkage
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(cv_upgma_edited3, k = k),dist_cv_edited3 )
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, UPGMA", xlab = "k (number of groups)", ylab = "Average silhouette width", cex = .5)
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n")
+# now says optimum number is 5 clusters. 
+
+# Silhouette plot of the final partition:
+# i cant get this code to actually show data on the plot but the numbers are still helpful
+
+k_i <- 5
+cutg_i <- cutree(cv_upgma_edited3, k = k_i)
+sil_i <- silhouette(cutg_i, dist_cv_edited3)
+silo_i <- sortSilhouette(sil_i)
+
+plot(silo_i)
+plot(silo_i, main = "Silhouette plot", cex.names = .4, col = cutg_i+1, nmax.lab = 100)
+min(sil_i)
+max(sil_i)
+# for 5 clusters, the avg sil width is .63
+
+# [Edited3]Mantel Coeff:----
+grpdist <- function(x)
+{
+  require(cluster)
+  gr <- as.data.frame(as.factor(x))
+  distgr <- daisy(gr, "gower")
+  distgr
+}
+
+kt <- data.frame(k = 1:30, r = 0) # 
+
+for (i in 2:30) { # only going to look at clusters up to 30
+  gr <- cutree(cv_upgma_edited3, i)
+  distgr <- grpdist(gr)
+  mt <- cor(dist_cv_edited3, distgr, method = "pearson")
+  kt[i, 2] <- mt
+}
+kt
+k.best <- which.max(kt$r)
+k.best # says  clusters are best
+
+#plot:
+plot(kt$k, kt$r, type = "h", main = "Mantel-optimal clusters-upgma", xlab = "k", ylab = "Pearson's correlation")
+axis(1, k.best, paste("optimum", k.best, sep = "/n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(kt$r), pch = 16, col = "red", cex = 1.5)
+
+# cut clusters :
+cv_ct_upgma_5<- cutree(cv_upgma_edited3, k = 5) 
+
+# put back into df:
+cv_dat_edited3_upgma_5Clusters <- CVdat_upgma_cluster6removed %>% 
+  mutate(cluster = cv_ct_upgma_5)
+unique(cv_dat_edited3_upgma_5Clusters$cluster)
+#write to file:
+write_csv(cv_dat_edited3_upgma_5Clusters, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_edited3_5clusts_upgma.csv")
+# see how many records in each cluster:
+length(which(cv_dat_edited3_upgma_5Clusters$cluster == 1))
+# now spatialize this in script: Make_Hierarch_Clusters_Spatial.R
+
+# No Scaling----
+# Running upgma method w/out scaling the data
+CVdat_upgma_6clusters <- read_csv("data_output/CV_fromPredicted_AllParams_across_actualRKMS_NoOutliers_6clusts_upgma.csv")
+# need to remove the records for cluster 6:
+
+CVdat_upgma_cluster6removed <-CVdat_upgma_6clusters %>% 
+  filter(cluster != 6)
+
+#Log transform and scale:----
+dat_transformed_edited3 <- apply(CVdat_upgma_cluster6removed[ , 1:8], 2, log) # transform the data
+
+dat_rescaled_edited3 <- apply(dat_transformed_edited3, 2, scale) # rescale the data
+
+# make dist matrix:
+dist_cv_edited3 <- dist(CVdat_upgma_cluster6removed[, 1:8 ], method = "euclidean")
+
+dist_cv_edited3 <- dist(dat_transformed_edited3[, 1:8 ], method = "euclidean")
+# Double check upgma is still best method:
+cv_complete <-  hclust(dist_cv_edited3, method = "complete") # still contains small group
+plot(cv_complete, hang = -5)
+
+# upgma (average) clustering----
+cv_upgma <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma, hang = -5)
+
+
+# Single Clustering ----
+cv_single <- hclust(dist_cv_edited3, method = "single") 
+plot(cv_single, hang = -5)
+
+# ward clustering----
+cv_ward <- hclust(dist_cv_edited3, method = "ward.D") # looks pretty good 
+plot(cv_ward, hang = -5)
+
+# Comparing Clustering Results ----
+# Cophenetic Correlation:
+#complete----
+cv_complete_coph <- cophenetic(cv_complete)
+cor(dist_cv_edited3, cv_complete_coph) #0.9000693 2nd
+#upgma----
+cv_upgma_coph <- cophenetic(cv_upgma)
+cor(dist_cv_edited3, cv_upgma_coph) #0.9491647  # best
+# single----
+cv_single_coph <- cophenetic(cv_single)
+cor(dist_cv_edited3, cv_single_coph) #0.7652201  Last
+#ward ----
+cv_ward_coph <- cophenetic(cv_ward)
+cor(dist_cv_edited3, cv_ward_coph) # 0.8274719 #3rd
+
+# now look at gower distance:
+#Gower Distance: Another way to compare cluster methods----
+#Computed as the sum of squared differences between the original and cophenetic distances. Cluster method that produces the smallest gower number is the best method
+gower.complete <- sum((dist_cv_edited3 - cv_complete_coph)^2)
+gower.complete/1000000 # 712.2645  2nd           
+gower.upgma <- sum((dist_cv_edited3 - cv_upgma_coph)^2)     
+gower.upgma/1000000  # 20.34918 best              
+gower.single<- sum((dist_cv_edited3 - cv_single_coph)^2)
+gower.single/1000000 # 344.1449 3rd
+gower.ward <- sum((dist_cv_edited3 - cv_ward_coph)^2)
+gower.ward/1000000 #4615749618 worst
+
+# Go with upgma method again:
+cv_upgma_edited3 <- hclust(dist_cv_edited3, method = "average") # has small group
+plot(cv_upgma_edited3, hang = -5)
+
+# check to see if changes number of clusters:
+# Create empty vector in which the asw (average sil widths) will be written
+asw <- numeric(nrow(CVdat_upgma_cluster6removed))
+#Retrieve and write asw values into the vector
+# complete linkage
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(cv_upgma_edited3, k = k),dist_cv_edited3 )
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, UPGMA", xlab = "k (number of groups)", ylab = "Average silhouette width", cex = .5)
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n")
+# now says optimum number is 3 clusters for data that isnt scaled or transformed
+# says 8 clusters if data is just log transformed 
+# very confused by this- i feel like log transforming should give you the same output as not doing anything to the data...
+
+# Silhouette plot of the final partition:
+# i cant get this code to actually show data on the plot but the numbers are still helpful
+
+k_i <- 5
+cutg_i <- cutree(cv_upgma_edited3, k = k_i)
+sil_i <- silhouette(cutg_i, dist_cv_edited3)
+silo_i <- sortSilhouette(sil_i)
+
+plot(silo_i)
+plot(silo_i, main = "Silhouette plot", cex.names = .4, col = cutg_i+1, nmax.lab = 100)
+min(sil_i)
+max(sil_i)
+# for 5 clusters, the avg sil width is .63
+
+# [Edited3]Mantel Coeff:----
+grpdist <- function(x)
+{
+  require(cluster)
+  gr <- as.data.frame(as.factor(x))
+  distgr <- daisy(gr, "gower")
+  distgr
+}
+
+kt <- data.frame(k = 1:30, r = 0) # 
+
+for (i in 2:30) { # only going to look at clusters up to 30
+  gr <- cutree(cv_upgma_edited3, i)
+  distgr <- grpdist(gr)
+  mt <- cor(dist_cv_edited3, distgr, method = "pearson")
+  kt[i, 2] <- mt
+}
+kt
+k.best <- which.max(kt$r)
+k.best # says  clusters are best
+
+#plot:
+plot(kt$k, kt$r, type = "h", main = "Mantel-optimal clusters-upgma", xlab = "k", ylab = "Pearson's correlation")
+axis(1, k.best, paste("optimum", k.best, sep = "/n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(kt$r), pch = 16, col = "red", cex = 1.5)
+
+# cut clusters :
+cv_ct_upgma_5<- cutree(cv_upgma_edited3, k = 5) 
+
+# put back into df:
+cv_dat_edited3_upgma_5Clusters <- CVdat_upgma_cluster6removed %>% 
+  mutate(cluster = cv_ct_upgma_5)
+unique(cv_dat_edited3_upgma_5Clusters$cluster)
+#write to file:
+write_csv(cv_dat_edited3_upgma_5Clusters, "data_output/CV_fromPredicted_AllParams_across_actualRKMS_edited3_5clusts_upgma.csv")
+# see how many records in each cluster:
+length(which(cv_dat_edited3_upgma_5Clusters$cluster == 1))
+# now spatialize this in script: Make_Hierarch_Clusters_Spatial.R
+
+# No Scaling----
+# Running upgma method w/out scaling the data
 
