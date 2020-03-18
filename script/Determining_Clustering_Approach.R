@@ -161,6 +161,8 @@ points(k.best, max(kt$r), pch = 16, col = "red", cex = 1.5)
 
 # Silhouette plot of the final partition:
 k <- 8
+#k <- 6
+#k <- 7
 cutg <- cutree(means_upgma, k = k)
 sil <- silhouette(cutg, dist_m)
 silo <- sortSilhouette(sil)
@@ -179,6 +181,7 @@ plot(silo, main = "Silhouette plot", cex.names = .4, col = cutg+1, nmax.lab = 10
 # with flame data:
 # for some reason data isnt showing up on plot, but still the data for the sil width for each cluster is useful
 #k_i <- 6
+#k_i <- 7 #0.57 sihl width
 k_i <- 8 # 8 has an avg sil width of .64, vs .56 for 6 clusters. so 8 is best
 cutg_i <- cutree(means_upgma, k = k_i)
 sil_i <- silhouette(cutg_i, dist_m)
@@ -195,9 +198,14 @@ means_ct_8<- cutree(means_upgma, k = 8)
 
 # put back into df:
 means_dat_upgma_8Clusters <- means_dat %>% 
-  mutate(clusters = means_ct_8)
+  mutate(cluster = means_ct_8)
+# see how many observations are within each cluster 
+amt_per_cluster <- means_dat_upgma_8Clusters %>% 
+  group_by(cluster) %>% 
+  tally
+# looks good, high number of observations in each cluster 
 #write to file:
-write_csv(means_dat_upgma_8Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_8clusts_upgma.csv")
+write_csv(means_dat_upgma_8Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_8clusts_upgma_031820.csv")
 
 # Dendextend:-----
 means_dend_clust <- as.dendrogram(means_upgma)
