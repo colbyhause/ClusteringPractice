@@ -199,13 +199,77 @@ means_ct_8<- cutree(means_upgma, k = 8)
 # put back into df:
 means_dat_upgma_8Clusters <- means_dat %>% 
   mutate(cluster = means_ct_8)
-# see how many observations are within each cluster 
+
+# write to file
+write_csv(means_dat_upgma_8Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_8clusts_upgma.csv") # INDCLUDES SMALL GROUP OF 12
+
+# see how many observations are within each cluster ----
 amt_per_cluster <- means_dat_upgma_8Clusters %>% 
   group_by(cluster) %>% 
-  tally
-# looks good, high number of observations in each cluster 
+  count()
+# shows only 12 observations in the first cluster !!! See what happens when remove those:
+
+length(which(means_ct_8 == 1))
+means_outliers <- which(means_dat_upgma_8Clusters$cluster == 1)
+# Removing the 12 outlier points
+means_dat_upgma_edited <- means_dat_upgma_8Clusters[-means_outliers, ]
+unique(means_dat_upgma_edited$cluster) 
+
+#Log transform and scale again:
+dat_transformed_edited_means<- apply(means_dat_upgma_edited[ , 1:8], 2, log) # transform the data
+dat_rescaled_edited_means <- apply(dat_transformed_edited_means, 2, scale) # rescale the data
+
+# run dist function on edited data:
+dist_edited_means<- dist(x = dat_rescaled_edited_means, method = "euclidean")
+# run the upgma method again:
+#upgma edited-----
+means_upgma_edited <- hclust(dist_edited_means, method = "average") 
+plot(means_upgma_edited, hang = -5) # now very clearly shows 7 distinct groups 
+
+# now see how many trees the sihlouette wants to break the data into (i suspect 7)
+asw <- numeric(nrow(means_dat_upgma_edited))
+#Retrieve and write asw values into the vector
+# uogma
+for (k in 2:30) { # only doing uo to 30 clusters
+  sil <- silhouette(cutree(means_upgma_edited, k = k), dist_edited_means)
+  asw[k] <- summary(sil)$avg.width
+}
+
+# best (largest) silhouette width
+k.best<- which.max(asw)
+
+plot(1:30, asw[1:30], type = "h", main = "Silhouette- optimal number of clusters, UPGMA", xlab = "k (number of groups)", ylab = "Average silhouette width", cex = .5)
+axis(1, k.best, paste("optimum", k.best, sep = "\n"), col = "red", font = 2, col.axis = "red")
+points(k.best, max(asw), pch = 16, col = "red", cex = 1.5)
+cat("", "Silhouette-optimal number of clusters k = ", k.best, "\n", "wih an average silhouette width of", max(asw), "\n")
+
+# says avg sihl width  = .64, which is comprable to when it was grouped into 8.
+
+# Silhouette plot of the final partition:
+k <-7
+cutg <- cutree(means_upgma_edited, k = k)
+sil <- silhouette(cutg, dist_edited_means)
+silo <- sortSilhouette(sil)
+rownames(silo) <- row.names(means_dat)
+
+
+plot(silo)
+plot(silo, main = "Silhouette plot", cex.names = .4, col = cutg+1, nmax.lab = 100)
+
+
+# cut clusters :
+means_ct_7<- cutree(means_upgma_edited, k = 7) 
+
+# put back into df:
+means_dat_upgma_7Clusters <- means_dat_upgma_edited %>% 
+  mutate(cluster = means_ct_7)
+# see how many observations per cluster:
+amt_per_cluster_7 <- means_dat_upgma_7Clusters %>% 
+  group_by(cluster) %>% 
+  count() # looks good!
+
 #write to file:
-write_csv(means_dat_upgma_8Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_8clusts_upgma_031820.csv")
+write_csv(means_dat_upgma_7Clusters, "data_output/mean_fromPredicted_AllParams_across_actualRKMS_7clusts_upgma_031920.csv")
 
 # Dendextend:-----
 means_dend_clust <- as.dendrogram(means_upgma)
@@ -421,7 +485,7 @@ plot(cv_upgma, hang = -5)
 # remove first group of outliers:----
 cv_ct_outliers <- cutree(cv_upgma, k = 2) #  break them into 2 clusters
 unique(cv_ct_outliers)
-length(which(cv_ct_outliers == 2)) # only 2 observations in cluster 2, remove these points
+length(which(cv_ct_outliers == 2)) # only 2 observations in cluster 2, remove these pointss
 length(cv_ct_outliers)
 # put the clusters into original df:
 cv_hclust_clusters <- cv_dat %>% 
